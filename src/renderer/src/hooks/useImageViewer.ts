@@ -1,0 +1,133 @@
+import { useState, useCallback, useEffect } from 'react'
+import type { ImageInfo, FolderImages } from '@/lib/types'
+
+interface ImageViewerState {
+  image: ImageInfo | null
+  folderImages: FolderImages | null
+  zoom: number
+  loading: boolean
+  error: string | null
+}
+
+interface ImageViewerActions {
+  openFile: () => Promise<void>
+  loadImage: (filePath: string) => Promise<void>
+  nextImage: () => Promise<void>
+  prevImage: () => Promise<void>
+  setZoom: (zoom: number) => void
+  zoomIn: () => void
+  zoomOut: () => void
+  resetZoom: () => void
+  reloadCurrent: () => Promise<void>
+}
+
+export function useImageViewer(): ImageViewerState & ImageViewerActions {
+  const [image, setImage] = useState<ImageInfo | null>(null)
+  const [folderImages, setFolderImages] = useState<FolderImages | null>(null)
+  const [zoom, setZoom] = useState(100)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadImage = useCallback(async (filePath: string) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const info = await window.api.loadImage(filePath)
+      setImage(info)
+      setZoom(100)
+
+      const folder = await window.api.getImages(filePath)
+      setFolderImages(folder)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const openFile = useCallback(async () => {
+    const filePath = await window.api.openFile()
+    if (filePath) {
+      await loadImage(filePath)
+    }
+  }, [loadImage])
+
+  const navigateImage = useCallback(
+    async (index: number) => {
+      if (!folderImages || index < 0 || index >= folderImages.files.length) return
+      const filePath = folderImages.files[index]
+      setLoading(true)
+      setError(null)
+      try {
+        const info = await window.api.loadImage(filePath)
+        setImage(info)
+        setZoom(100)
+        setFolderImages({ ...folderImages, currentIndex: index })
+      } catch (err) {
+        setError((err as Error).message)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [folderImages]
+  )
+
+  const nextImage = useCallback(async () => {
+    if (!folderImages) return
+    const next = folderImages.currentIndex + 1
+    if (next < folderImages.files.length) {
+      await navigateImage(next)
+    }
+  }, [folderImages, navigateImage])
+
+  const prevImage = useCallback(async () => {
+    if (!folderImages) return
+    const prev = folderImages.currentIndex - 1
+    if (prev >= 0) {
+      await navigateImage(prev)
+    }
+  }, [folderImages, navigateImage])
+
+  const zoomIn = useCallback(() => {
+    setZoom((z) => Math.min(z + 10, 500))
+  }, [])
+
+  const zoomOut = useCallback(() => {
+    setZoom((z) => Math.max(z - 10, 10))
+  }, [])
+
+  const resetZoom = useCallback(() => {
+    setZoom(100)
+  }, [])
+
+  const reloadCurrent = useCallback(async () => {
+    if (image) {
+      await loadImage(image.filePath)
+    }
+  }, [image, loadImage])
+
+  // Listen for file:open event (file association)
+  useEffect(() => {
+    const cleanup = window.api.onFileOpen((filePath: string) => {
+      loadImage(filePath)
+    })
+    return cleanup
+  }, [loadImage])
+
+  return {
+    image,
+    folderImages,
+    zoom,
+    loading,
+    error,
+    openFile,
+    loadImage,
+    nextImage,
+    prevImage,
+    setZoom,
+    zoomIn,
+    zoomOut,
+    resetZoom,
+    reloadCurrent
+  }
+}

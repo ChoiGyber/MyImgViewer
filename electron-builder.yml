@@ -1,0 +1,53 @@
+appId: com.myimgviewer
+productName: MyImgViewer
+directories:
+  buildResources: resources
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+asarUnpack:
+  - resources/**
+  - node_modules/sharp/**
+  - node_modules/@img/**
+win:
+  executableName: MyImgViewer
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: resources/icon.ico
+  fileAssociations:
+    - ext: jpg
+      name: JPEG Image
+      role: Viewer
+    - ext: jpeg
+      name: JPEG Image
+      role: Viewer
+    - ext: png
+      name: PNG Image
+      role: Viewer
+    - ext: webp
+      name: WebP Image
+      role: Viewer
+    - ext: avif
+      name: AVIF Image
+      role: Viewer
+    - ext: tiff
+      name: TIFF Image
+      role: Viewer
+    - ext: gif
+      name: GIF Image
+      role: Viewer
+    - ext: bmp
+      name: BMP Image
+      role: Viewer
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: MyImgViewer
+  uninstallDisplayName: MyImgViewer
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: true
