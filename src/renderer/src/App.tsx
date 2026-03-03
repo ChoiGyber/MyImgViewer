@@ -37,14 +37,15 @@ function App(): React.JSX.Element {
   )
   useKeyboardShortcuts(shortcuts)
 
-  // Get folder path from current image
+  // Use current image dir, or fall back to lastDir from localStorage
   const folderPath = useMemo(() => {
-    if (!viewer.image) return ''
-    // Extract directory from file path
-    const parts = viewer.image.filePath.replace(/\\/g, '/')
-    const lastSlash = parts.lastIndexOf('/')
-    return lastSlash >= 0 ? viewer.image.filePath.substring(0, lastSlash) : ''
-  }, [viewer.image])
+    if (viewer.image) {
+      const parts = viewer.image.filePath.replace(/\\/g, '/')
+      const lastSlash = parts.lastIndexOf('/')
+      return lastSlash >= 0 ? viewer.image.filePath.substring(0, lastSlash) : ''
+    }
+    return viewer.lastDir
+  }, [viewer.image, viewer.lastDir])
 
   const handleFolderSelect = useCallback(
     (filePath: string) => {
@@ -54,10 +55,8 @@ function App(): React.JSX.Element {
   )
 
   const handleDoubleClick = useCallback(() => {
-    if (viewer.image) {
-      setFolderBrowserOpen(true)
-    }
-  }, [viewer.image])
+    setFolderBrowserOpen(true)
+  }, [])
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -97,8 +96,10 @@ function App(): React.JSX.Element {
         )}
         <DropZone
           hasImage={!!viewer.image}
+          hasLastDir={!!viewer.lastDir}
           onDrop={viewer.loadImage}
           onOpen={viewer.openFile}
+          onShowFolder={() => setFolderBrowserOpen(true)}
         />
 
         {/* Folder browser overlay */}

@@ -7,6 +7,7 @@ interface ImageViewerState {
   zoom: number
   loading: boolean
   error: string | null
+  lastDir: string
 }
 
 interface ImageViewerActions {
@@ -21,12 +22,24 @@ interface ImageViewerActions {
   reloadCurrent: () => Promise<void>
 }
 
+function extractDir(filePath: string): string {
+  const normalized = filePath.replace(/\\/g, '/')
+  const lastSlash = normalized.lastIndexOf('/')
+  return lastSlash >= 0 ? filePath.substring(0, lastSlash) : ''
+}
+
 export function useImageViewer(): ImageViewerState & ImageViewerActions {
   const [image, setImage] = useState<ImageInfo | null>(null)
   const [folderImages, setFolderImages] = useState<FolderImages | null>(null)
   const [zoom, setZoom] = useState(100)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [lastDir, setLastDir] = useState(() => localStorage.getItem('lastDir') || '')
+
+  const saveLastDir = useCallback((dir: string) => {
+    setLastDir(dir)
+    localStorage.setItem('lastDir', dir)
+  }, [])
 
   const loadImage = useCallback(async (filePath: string) => {
     setLoading(true)
@@ -36,6 +49,9 @@ export function useImageViewer(): ImageViewerState & ImageViewerActions {
       setImage(info)
       setZoom(100)
 
+      const dir = extractDir(filePath)
+      if (dir) saveLastDir(dir)
+
       const folder = await window.api.getImages(filePath)
       setFolderImages(folder)
     } catch (err) {
@@ -43,7 +59,7 @@ export function useImageViewer(): ImageViewerState & ImageViewerActions {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [saveLastDir])
 
   const openFile = useCallback(async () => {
     const filePath = await window.api.openFile()
@@ -120,6 +136,7 @@ export function useImageViewer(): ImageViewerState & ImageViewerActions {
     zoom,
     loading,
     error,
+    lastDir,
     openFile,
     loadImage,
     nextImage,
