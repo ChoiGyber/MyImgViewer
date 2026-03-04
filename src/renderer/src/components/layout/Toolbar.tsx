@@ -8,32 +8,59 @@ import {
   RotateCw,
   Layers,
   Sun,
-  Moon
+  Moon,
+  PanelLeftOpen,
+  PanelLeftClose,
+  AppWindow,
+  Square
 } from 'lucide-react'
 
 interface ToolbarProps {
   hasImage: boolean
   isDark: boolean
+  sidebarOpen: boolean
   onOpen: () => void
   onConvert: () => void
   onResize: () => void
   onRotateFlip: () => void
   onBatchResize: () => void
+  onCaptureWindow: () => void
+  onCaptureRect: () => void
   onToggleTheme: () => void
+  onToggleSidebar: () => void
 }
 
 export function Toolbar({
   hasImage,
   isDark,
+  sidebarOpen,
   onOpen,
   onConvert,
   onResize,
   onRotateFlip,
   onBatchResize,
-  onToggleTheme
+  onCaptureWindow,
+  onCaptureRect,
+  onToggleTheme,
+  onToggleSidebar
 }: ToolbarProps): React.JSX.Element {
   return (
     <div className="flex items-center gap-1 py-1.5 pr-4 border-b bg-background" style={{ paddingLeft: 10 }}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggleSidebar}>
+            {sidebarOpen ? (
+              <PanelLeftClose className="h-4 w-4" />
+            ) : (
+              <PanelLeftOpen className="h-4 w-4" />
+            )}
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{sidebarOpen ? '사이드바 닫기' : '사이드바 열기'}</TooltipContent>
+      </Tooltip>
+
+      <Separator orientation="vertical" className="h-6 mx-1" />
+
       <Tooltip>
         <TooltipTrigger asChild>
           <Button variant="ghost" size="sm" onClick={onOpen}>
@@ -86,6 +113,28 @@ export function Toolbar({
           </Button>
         </TooltipTrigger>
         <TooltipContent>여러 이미지 일괄 크기 줄이기</TooltipContent>
+      </Tooltip>
+
+      <Separator orientation="vertical" className="h-6 mx-1" />
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="sm" onClick={onCaptureWindow}>
+            <AppWindow className="h-4 w-4 mr-1" />
+            창캡쳐
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>창 캡쳐</TooltipContent>
+      </Tooltip>
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="sm" onClick={onCaptureRect}>
+            <Square className="h-4 w-4 mr-1" />
+            사각형캡쳐
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>사각형 영역 캡쳐</TooltipContent>
       </Tooltip>
 
       <div className="flex-1" />

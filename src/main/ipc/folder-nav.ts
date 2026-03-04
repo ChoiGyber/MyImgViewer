@@ -3,15 +3,28 @@ import sharp from 'sharp'
 import * as path from 'path'
 import * as fs from 'fs'
 
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tiff', '.tif', '.gif', '.bmp', '.svg']
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tiff', '.tif', '.gif', '.bmp', '.svg', '.heic', '.heif']
 
 const mimeMap: Record<string, string> = {
   jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
   webp: 'image/webp', avif: 'image/avif', tiff: 'image/tiff',
-  tif: 'image/tiff', gif: 'image/gif', svg: 'image/svg+xml', bmp: 'image/bmp'
+  tif: 'image/tiff', gif: 'image/gif', svg: 'image/svg+xml', bmp: 'image/bmp',
+  heic: 'image/heic', heif: 'image/heif'
 }
 
 export function registerFolderNavHandlers(): void {
+  ipcMain.handle('folder:listDirs', async (_e, dirPath: string) => {
+    try {
+      const entries = fs.readdirSync(dirPath, { withFileTypes: true })
+      return entries
+        .filter((e) => e.isDirectory())
+        .map((e) => e.name)
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    } catch {
+      return []
+    }
+  })
+
   ipcMain.handle('folder:list', async (_e, dirPath: string) => {
     try {
       const allFiles = fs.readdirSync(dirPath)

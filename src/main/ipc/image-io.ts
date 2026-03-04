@@ -3,7 +3,7 @@ import sharp from 'sharp'
 import * as path from 'path'
 import * as fs from 'fs'
 
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tiff', '.tif', '.gif', '.bmp', '.svg']
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tiff', '.tif', '.gif', '.bmp', '.svg', '.heic', '.heif']
 
 function isImageFile(filePath: string): boolean {
   return IMAGE_EXTENSIONS.includes(path.extname(filePath).toLowerCase())
@@ -12,7 +12,7 @@ function isImageFile(filePath: string): boolean {
 export function registerImageIOHandlers(): void {
   ipcMain.handle('dialog:openFile', async () => {
     const result = await dialog.showOpenDialog({
-      filters: [{ name: '이미지 파일', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'gif', 'bmp', 'svg'] }],
+      filters: [{ name: '이미지 파일', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'gif', 'bmp', 'svg', 'heic', 'heif'] }],
       properties: ['openFile']
     })
     if (result.canceled || result.filePaths.length === 0) return null
@@ -21,7 +21,7 @@ export function registerImageIOHandlers(): void {
 
   ipcMain.handle('dialog:openFiles', async () => {
     const result = await dialog.showOpenDialog({
-      filters: [{ name: '이미지 파일', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'gif', 'bmp', 'svg'] }],
+      filters: [{ name: '이미지 파일', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'gif', 'bmp', 'svg', 'heic', 'heif'] }],
       properties: ['openFile', 'multiSelections']
     })
     if (result.canceled) return []
@@ -70,7 +70,9 @@ export function registerImageIOHandlers(): void {
         tif: 'image/tiff',
         gif: 'image/gif',
         svg: 'image/svg+xml',
-        bmp: 'image/bmp'
+        bmp: 'image/bmp',
+        heic: 'image/heic',
+        heif: 'image/heif'
       }
 
       let width = 0
@@ -86,8 +88,16 @@ export function registerImageIOHandlers(): void {
         console.log('[image:load] Sharp metadata failed, using extension:', (sharpErr as Error).message)
       }
 
-      const mime = mimeMap[ext] || mimeMap[format] || 'image/png'
-      const dataUrl = `data:${mime};base64,${buffer.toString('base64')}`
+      // HEIC/HEIF: convert to JPEG for browser display
+      const isHeic = ext === 'heic' || ext === 'heif'
+      let dataUrl: string
+      if (isHeic) {
+        const jpegBuf = await sharp(buffer).jpeg({ quality: 92 }).toBuffer()
+        dataUrl = `data:image/jpeg;base64,${jpegBuf.toString('base64')}`
+      } else {
+        const mime = mimeMap[ext] || mimeMap[format] || 'image/png'
+        dataUrl = `data:${mime};base64,${buffer.toString('base64')}`
+      }
 
       return {
         filePath: normalizedPath,

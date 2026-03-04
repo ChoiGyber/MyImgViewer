@@ -19,6 +19,7 @@ const api = {
   getImages: (filePath: string) => ipcRenderer.invoke('folder:getImages', filePath),
   listFolder: (dirPath: string) => ipcRenderer.invoke('folder:list', dirPath),
   getFolderThumbnails: (dirPath: string) => ipcRenderer.invoke('folder:thumbnails', dirPath),
+  listDirs: (dirPath: string): Promise<string[]> => ipcRenderer.invoke('folder:listDirs', dirPath),
 
   // Image processing
   convert: (options: {
@@ -64,6 +65,25 @@ const api = {
       ipcRenderer.removeListener('batch:progress', handler)
     }
   },
+
+  // Screen capture
+  getCaptureSources: (): Promise<{ id: string; name: string; thumbnail: string }[]> =>
+    ipcRenderer.invoke('capture:getSources'),
+  captureWindow: (sourceId: string): Promise<{ buffer: { type: string; data: number[] } }> =>
+    ipcRenderer.invoke('capture:captureWindow', sourceId),
+  captureScreen: (): Promise<{ dataUrl: string; screenWidth: number; screenHeight: number; scaleFactor: number }> =>
+    ipcRenderer.invoke('capture:captureScreen'),
+  saveCaptureToFolder: (buffer: number[], folderPath: string): Promise<string> =>
+    ipcRenderer.invoke('capture:saveAndCopy', buffer, folderPath),
+  cropAndSave: (
+    dataUrl: string,
+    rect: { x: number; y: number; width: number; height: number },
+    folderPath: string
+  ): Promise<string> => ipcRenderer.invoke('capture:cropAndSave', dataUrl, rect, folderPath),
+  getQuickPaths: (): Promise<{ home: string; pictures: string; downloads: string; documents: string }> =>
+    ipcRenderer.invoke('capture:getQuickPaths'),
+  hideMainWindow: (): Promise<void> => ipcRenderer.invoke('capture:hideMainWindow'),
+  showMainWindow: (): Promise<void> => ipcRenderer.invoke('capture:showMainWindow'),
 
   // File association
   onFileOpen: (callback: (filePath: string) => void) => {

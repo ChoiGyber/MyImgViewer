@@ -2,6 +2,8 @@ import { useState, useMemo, useCallback } from 'react'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { Toolbar } from '@/components/layout/Toolbar'
+import { DirectoryBar } from '@/components/layout/DirectoryBar'
+import { DirectoryTree } from '@/components/layout/DirectoryTree'
 import { StatusBar } from '@/components/layout/StatusBar'
 import { ImageCanvas } from '@/components/viewer/ImageCanvas'
 import { DropZone } from '@/components/viewer/DropZone'
@@ -10,6 +12,8 @@ import { ConvertDialog } from '@/components/dialogs/ConvertDialog'
 import { ResizeDialog } from '@/components/dialogs/ResizeDialog'
 import { BatchResizeDialog } from '@/components/dialogs/BatchResizeDialog'
 import { RotateFlipPanel } from '@/components/dialogs/RotateFlipPanel'
+import { WindowPicker } from '@/components/capture/WindowPicker'
+import { RectangleCapture } from '@/components/capture/RectangleCapture'
 import { useImageViewer } from '@/hooks/useImageViewer'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useTheme } from '@/hooks/useTheme'
@@ -18,11 +22,19 @@ function App(): React.JSX.Element {
   const viewer = useImageViewer()
   const { isDark, toggle: toggleTheme } = useTheme()
 
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [convertOpen, setConvertOpen] = useState(false)
   const [resizeOpen, setResizeOpen] = useState(false)
   const [rotateOpen, setRotateOpen] = useState(false)
   const [batchOpen, setBatchOpen] = useState(false)
   const [folderBrowserOpen, setFolderBrowserOpen] = useState(false)
+  const [windowPickerOpen, setWindowPickerOpen] = useState(false)
+  const [rectCaptureData, setRectCaptureData] = useState<{
+    dataUrl: string
+    screenWidth: number
+    screenHeight: number
+    scaleFactor: number
+  } | null>(null)
 
   const shortcuts = useMemo(
     () => ({
@@ -54,9 +66,100 @@ function App(): React.JSX.Element {
     [viewer.loadImage]
   )
 
+  const [folderBrowserDir, setFolderBrowserDir] = useState<string | null>(null)
+
+  const handleBreadcrumbNavigate = useCallback(
+    (dirPath: string) => {
+      setFolderBrowserDir(dirPath)
+      setFolderBrowserOpen(true)
+    },
+    []
+  )
+
+  const handleOpenFolderDialog = useCallback(async () => {
+    const dir = await window.api.openFolder()
+    if (dir) {
+      setFolderBrowserDir(dir)
+      setFolderBrowserOpen(true)
+    }
+  }, [])
+
   const handleDoubleClick = useCallback(() => {
+    setFolderBrowserDir(null)
     setFolderBrowserOpen(true)
   }, [])
+
+  const handleTreeSelect = useCallback(
+    (dirPath: string) => {
+      setFolderBrowserDir(dirPath)
+      setFolderBrowserOpen(true)
+    },
+    []
+  )
+
+  const getSaveFolder = useCallback((): string => {
+    if (folderPath) return folderPath
+    return viewer.lastDir || ''
+  }, [folderPath, viewer.lastDir])
+
+  const handleCaptureWindow = useCallback(
+    async (sourceId: string) => {
+      try {
+        const result = await window.api.captureWindow(sourceId)
+        const saveDir = getSaveFolder()
+        if (!saveDir) {
+          alert('저장할 폴더가 없습니다. 먼저 폴더를 열어주세요.')
+          return
+        }
+        const savedPath = await window.api.saveCaptureToFolder(result.buffer.data, saveDir)
+        await viewer.loadImage(savedPath)
+      } catch (err) {
+        alert(`캡쳐 실패: ${(err as Error).message}`)
+      }
+    },
+    [getSaveFolder, viewer.loadImage]
+  )
+
+  const handleStartRectCapture = useCallback(async () => {
+    try {
+      await window.api.hideMainWindow()
+      // Small delay to let the window fully hide
+      await new Promise((r) => setTimeout(r, 300))
+      const screenData = await window.api.captureScreen()
+      await window.api.showMainWindow()
+      setRectCaptureData(screenData)
+    } catch (err) {
+      await window.api.showMainWindow()
+      alert(`캡쳐 실패: ${(err as Error).message}`)
+    }
+  }, [])
+
+  const handleRectCapture = useCallback(
+    async (rect: { x: number; y: number; width: number; height: number }) => {
+      if (!rectCaptureData) return
+      try {
+        const saveDir = getSaveFolder()
+        if (!saveDir) {
+          alert('저장할 폴더가 없습니다. 먼저 폴더를 열어주세요.')
+          setRectCaptureData(null)
+          return
+        }
+        const savedPath = await window.api.cropAndSave(rectCaptureData.dataUrl, rect, saveDir)
+        setRectCaptureData(null)
+        await viewer.loadImage(savedPath)
+      } catch (err) {
+        setRectCaptureData(null)
+        alert(`캡쳐 저장 실패: ${(err as Error).message}`)
+      }
+    },
+    [rectCaptureData, getSaveFolder, viewer.loadImage]
+  )
+
+  const handleRectCancel = useCallback(() => {
+    setRectCaptureData(null)
+  }, [])
+
+  const toggleSidebar = useCallback(() => setSidebarOpen((v) => !v), [])
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -65,14 +168,35 @@ function App(): React.JSX.Element {
           <Toolbar
             hasImage={!!viewer.image}
             isDark={isDark}
+            sidebarOpen={sidebarOpen}
             onOpen={viewer.openFile}
             onConvert={() => setConvertOpen(true)}
             onResize={() => setResizeOpen(true)}
             onRotateFlip={() => setRotateOpen(true)}
             onBatchResize={() => setBatchOpen(true)}
+            onCaptureWindow={() => setWindowPickerOpen(true)}
+            onCaptureRect={handleStartRectCapture}
             onToggleTheme={toggleTheme}
+            onToggleSidebar={toggleSidebar}
           />
         }
+        directoryBar={
+          folderPath ? (
+            <DirectoryBar
+              currentPath={folderPath}
+              onNavigate={handleBreadcrumbNavigate}
+              onOpenFolder={handleOpenFolderDialog}
+            />
+          ) : undefined
+        }
+        sidebar={
+          <DirectoryTree
+            rootPath={folderPath}
+            currentPath={folderPath}
+            onSelectFolder={handleTreeSelect}
+          />
+        }
+        sidebarOpen={sidebarOpen}
         statusBar={
           <StatusBar
             image={viewer.image}
@@ -99,14 +223,20 @@ function App(): React.JSX.Element {
           hasLastDir={!!viewer.lastDir}
           onDrop={viewer.loadImage}
           onOpen={viewer.openFile}
-          onShowFolder={() => setFolderBrowserOpen(true)}
+          onShowFolder={() => {
+            setFolderBrowserDir(null)
+            setFolderBrowserOpen(true)
+          }}
         />
 
         {/* Folder browser overlay */}
         <FolderBrowser
           open={folderBrowserOpen}
-          onClose={() => setFolderBrowserOpen(false)}
-          folderPath={folderPath}
+          onClose={() => {
+            setFolderBrowserOpen(false)
+            setFolderBrowserDir(null)
+          }}
+          folderPath={folderBrowserDir || folderPath}
           currentFilePath={viewer.image?.filePath || null}
           onSelect={handleFolderSelect}
         />
@@ -170,6 +300,20 @@ function App(): React.JSX.Element {
         </>
       )}
       <BatchResizeDialog open={batchOpen} onOpenChange={setBatchOpen} />
+
+      {/* Capture dialogs */}
+      <WindowPicker
+        open={windowPickerOpen}
+        onOpenChange={setWindowPickerOpen}
+        onCapture={handleCaptureWindow}
+      />
+      {rectCaptureData && (
+        <RectangleCapture
+          screenData={rectCaptureData}
+          onCapture={handleRectCapture}
+          onCancel={handleRectCancel}
+        />
+      )}
     </TooltipProvider>
   )
 }

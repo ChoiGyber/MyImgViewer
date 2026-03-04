@@ -23,10 +23,10 @@ export const FIT_OPTIONS = [
 ] as const
 
 export const IMAGE_EXTENSIONS = [
-  '.jpg', '.jpeg', '.png', '.webp', '.avif', '.tiff', '.tif', '.gif', '.bmp', '.svg'
+  '.jpg', '.jpeg', '.png', '.webp', '.avif', '.tiff', '.tif', '.gif', '.bmp', '.svg', '.heic', '.heif'
 ]
 
 export const IMAGE_FILTER = {
   name: '이미지 파일',
-  extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'gif', 'bmp', 'svg']
+  extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'gif', 'bmp', 'svg', 'heic', 'heif']
 }
