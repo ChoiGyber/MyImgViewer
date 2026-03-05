@@ -36,19 +36,6 @@ function App(): React.JSX.Element {
     scaleFactor: number
   } | null>(null)
 
-  const shortcuts = useMemo(
-    () => ({
-      openFile: viewer.openFile,
-      nextImage: viewer.nextImage,
-      prevImage: viewer.prevImage,
-      zoomIn: viewer.zoomIn,
-      zoomOut: viewer.zoomOut,
-      resetZoom: viewer.resetZoom
-    }),
-    [viewer.openFile, viewer.nextImage, viewer.prevImage, viewer.zoomIn, viewer.zoomOut, viewer.resetZoom]
-  )
-  useKeyboardShortcuts(shortcuts)
-
   // Use current image dir, or fall back to lastDir from localStorage
   const folderPath = useMemo(() => {
     if (viewer.image) {
@@ -161,6 +148,185 @@ function App(): React.JSX.Element {
 
   const toggleSidebar = useCallback(() => setSidebarOpen((v) => !v), [])
 
+  const handleRotateLeft = useCallback(async () => {
+    if (!viewer.image) return
+    try {
+      await window.api.historyBeforeEdit(viewer.image.filePath)
+      await window.api.transform({
+        filePath: viewer.image.filePath,
+        rotate: 270,
+        outputPath: viewer.image.filePath
+      })
+      await viewer.reloadCurrent()
+    } catch (err) {
+      alert(`회전 실패: ${(err as Error).message}`)
+    }
+  }, [viewer.image, viewer.reloadCurrent])
+
+  const handleRotateRight = useCallback(async () => {
+    if (!viewer.image) return
+    try {
+      await window.api.historyBeforeEdit(viewer.image.filePath)
+      await window.api.transform({
+        filePath: viewer.image.filePath,
+        rotate: 90,
+        outputPath: viewer.image.filePath
+      })
+      await viewer.reloadCurrent()
+    } catch (err) {
+      alert(`회전 실패: ${(err as Error).message}`)
+    }
+  }, [viewer.image, viewer.reloadCurrent])
+
+  const handleQuickResize = useCallback(async () => {
+    if (!viewer.image) return
+    try {
+      await window.api.historyBeforeEdit(viewer.image.filePath)
+      const newWidth = Math.round(viewer.image.width / 2)
+      const newHeight = Math.round(viewer.image.height / 2)
+      await window.api.resize({
+        filePath: viewer.image.filePath,
+        width: newWidth,
+        height: newHeight,
+        fit: 'inside',
+        outputPath: viewer.image.filePath
+      })
+      await viewer.reloadCurrent()
+    } catch (err) {
+      alert(`크기 줄이기 실패: ${(err as Error).message}`)
+    }
+  }, [viewer.image, viewer.reloadCurrent])
+
+  const handleUndo = useCallback(async () => {
+    if (!viewer.image) return
+    const result = await window.api.historyUndo(viewer.image.filePath)
+    if (result.success) await viewer.reloadCurrent()
+  }, [viewer.image, viewer.reloadCurrent])
+
+  const handleRedo = useCallback(async () => {
+    if (!viewer.image) return
+    const result = await window.api.historyRedo(viewer.image.filePath)
+    if (result.success) await viewer.reloadCurrent()
+  }, [viewer.image, viewer.reloadCurrent])
+
+  const handleCopyImage = useCallback(async () => {
+    if (!viewer.image) return
+    try {
+      await window.api.copyImageToClipboard(viewer.image.filePath)
+    } catch (err) {
+      alert(`복사 실패: ${(err as Error).message}`)
+    }
+  }, [viewer.image])
+
+  const handleDeleteImage = useCallback(async () => {
+    if (!viewer.image) return
+    const ok = confirm(`"${viewer.image.fileName}"을(를) 휴지통으로 이동하시겠습니까?`)
+    if (!ok) return
+    try {
+      await window.api.deleteImage(viewer.image.filePath)
+      // Load next or previous image, or clear
+      if (viewer.folderImages && viewer.folderImages.files.length > 1) {
+        const idx = viewer.folderImages.currentIndex
+        const nextIdx = idx < viewer.folderImages.files.length - 1 ? idx + 1 : idx - 1
+        const nextFile = viewer.folderImages.files[nextIdx]
+        await viewer.loadImage(nextFile)
+      } else {
+        viewer.clearImage()
+      }
+    } catch (err) {
+      alert(`삭제 실패: ${(err as Error).message}`)
+    }
+  }, [viewer.image, viewer.folderImages, viewer.loadImage, viewer.clearImage])
+
+  const shortcuts = useMemo(
+    () => ({
+      openFile: viewer.openFile,
+      nextImage: viewer.nextImage,
+      prevImage: viewer.prevImage,
+      zoomIn: viewer.zoomIn,
+      zoomOut: viewer.zoomOut,
+      resetZoom: viewer.resetZoom,
+      undo: handleUndo,
+      redo: handleRedo,
+      deleteImage: handleDeleteImage
+    }),
+    [viewer.openFile, viewer.nextImage, viewer.prevImage, viewer.zoomIn, viewer.zoomOut, viewer.resetZoom, handleUndo, handleRedo, handleDeleteImage]
+  )
+  useKeyboardShortcuts(shortcuts)
+
+  // FolderBrowser context menu: refresh counter to trigger re-fetch
+  const [folderRefreshKey, setFolderRefreshKey] = useState(0)
+  const refreshFolderBrowser = useCallback(() => setFolderRefreshKey((k) => k + 1), [])
+
+  const handleListRotateLeft = useCallback(async (filePath: string) => {
+    try {
+      await window.api.historyBeforeEdit(filePath)
+      await window.api.transform({ filePath, rotate: 270, outputPath: filePath })
+      refreshFolderBrowser()
+      if (viewer.image?.filePath === filePath) await viewer.reloadCurrent()
+    } catch (err) {
+      alert(`회전 실패: ${(err as Error).message}`)
+    }
+  }, [refreshFolderBrowser, viewer.image, viewer.reloadCurrent])
+
+  const handleListRotateRight = useCallback(async (filePath: string) => {
+    try {
+      await window.api.historyBeforeEdit(filePath)
+      await window.api.transform({ filePath, rotate: 90, outputPath: filePath })
+      refreshFolderBrowser()
+      if (viewer.image?.filePath === filePath) await viewer.reloadCurrent()
+    } catch (err) {
+      alert(`회전 실패: ${(err as Error).message}`)
+    }
+  }, [refreshFolderBrowser, viewer.image, viewer.reloadCurrent])
+
+  const handleListResize = useCallback(async (filePath: string) => {
+    try {
+      await window.api.historyBeforeEdit(filePath)
+      const info = await window.api.loadImage(filePath)
+      await window.api.resize({
+        filePath,
+        width: Math.round(info.width / 2),
+        height: Math.round(info.height / 2),
+        fit: 'inside',
+        outputPath: filePath
+      })
+      refreshFolderBrowser()
+      if (viewer.image?.filePath === filePath) await viewer.reloadCurrent()
+    } catch (err) {
+      alert(`크기 줄이기 실패: ${(err as Error).message}`)
+    }
+  }, [refreshFolderBrowser, viewer.image, viewer.reloadCurrent])
+
+  const handleListCopy = useCallback(async (filePath: string) => {
+    try {
+      await window.api.copyImageToClipboard(filePath)
+    } catch (err) {
+      alert(`복사 실패: ${(err as Error).message}`)
+    }
+  }, [])
+
+  const handleListDelete = useCallback(async (filePath: string) => {
+    const fileName = filePath.replace(/\\/g, '/').split('/').pop() || filePath
+    const ok = confirm(`"${fileName}"을(를) 휴지통으로 이동하시겠습니까?`)
+    if (!ok) return
+    try {
+      await window.api.deleteImage(filePath)
+      refreshFolderBrowser()
+      if (viewer.image?.filePath === filePath) {
+        if (viewer.folderImages && viewer.folderImages.files.length > 1) {
+          const idx = viewer.folderImages.currentIndex
+          const nextIdx = idx < viewer.folderImages.files.length - 1 ? idx + 1 : idx - 1
+          await viewer.loadImage(viewer.folderImages.files[nextIdx])
+        } else {
+          viewer.clearImage()
+        }
+      }
+    } catch (err) {
+      alert(`삭제 실패: ${(err as Error).message}`)
+    }
+  }, [refreshFolderBrowser, viewer.image, viewer.folderImages, viewer.loadImage])
+
   return (
     <TooltipProvider delayDuration={300}>
       <MainLayout
@@ -216,6 +382,11 @@ function App(): React.JSX.Element {
             zoom={viewer.zoom}
             onZoomChange={viewer.setZoom}
             onDoubleClick={handleDoubleClick}
+            onRotateLeft={handleRotateLeft}
+            onRotateRight={handleRotateRight}
+            onResize={handleQuickResize}
+            onCopy={handleCopyImage}
+            onDelete={handleDeleteImage}
           />
         )}
         <DropZone
@@ -231,6 +402,7 @@ function App(): React.JSX.Element {
 
         {/* Folder browser overlay */}
         <FolderBrowser
+          key={folderRefreshKey}
           open={folderBrowserOpen}
           onClose={() => {
             setFolderBrowserOpen(false)
@@ -239,6 +411,12 @@ function App(): React.JSX.Element {
           folderPath={folderBrowserDir || folderPath}
           currentFilePath={viewer.image?.filePath || null}
           onSelect={handleFolderSelect}
+          onNavigate={(dirPath) => setFolderBrowserDir(dirPath)}
+          onRotateLeft={handleListRotateLeft}
+          onRotateRight={handleListRotateRight}
+          onResize={handleListResize}
+          onCopy={handleListCopy}
+          onDelete={handleListDelete}
         />
 
         {viewer.loading && (

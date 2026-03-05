@@ -3,6 +3,7 @@ import { registerImageProcessHandlers } from './image-process'
 import { registerBatchHandlers } from './image-batch'
 import { registerFolderNavHandlers } from './folder-nav'
 import { registerScreenCaptureHandlers } from './screen-capture'
+import { registerImageHistoryHandlers } from './image-history'
 
 export function registerAllHandlers(): void {
   registerImageIOHandlers()
@@ -10,4 +11,5 @@ export function registerAllHandlers(): void {
   registerBatchHandlers()
   registerFolderNavHandlers()
   registerScreenCaptureHandlers()
+  registerImageHistoryHandlers()
 }

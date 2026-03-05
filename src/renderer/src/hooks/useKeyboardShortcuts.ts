@@ -7,6 +7,9 @@ interface ShortcutActions {
   zoomIn: () => void
   zoomOut: () => void
   resetZoom: () => void
+  undo: () => void
+  redo: () => void
+  deleteImage: () => void
 }
 
 export function useKeyboardShortcuts(actions: ShortcutActions): void {
@@ -15,7 +18,13 @@ export function useKeyboardShortcuts(actions: ShortcutActions): void {
       // Don't trigger shortcuts when typing in input fields
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
 
-      if (e.ctrlKey && e.key === 'o') {
+      if (e.ctrlKey && e.key === 'z') {
+        e.preventDefault()
+        actions.undo()
+      } else if (e.ctrlKey && e.key === 'y') {
+        e.preventDefault()
+        actions.redo()
+      } else if (e.ctrlKey && e.key === 'o') {
         e.preventDefault()
         actions.openFile()
       } else if (e.key === 'ArrowRight') {
@@ -33,6 +42,9 @@ export function useKeyboardShortcuts(actions: ShortcutActions): void {
       } else if (e.key === '0') {
         e.preventDefault()
         actions.resetZoom()
+      } else if (e.key === 'Delete') {
+        e.preventDefault()
+        actions.deleteImage()
       }
     }
 

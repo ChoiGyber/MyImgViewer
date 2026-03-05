@@ -1,7 +1,7 @@
 {
   "name": "myimgviewer",
   "version": "1.0.0",
-  "description": "심플 이미지 뷰어",
+  "description": "My Zip",
   "main": "./out/main/index.js",
   "author": "",
   "license": "MIT",

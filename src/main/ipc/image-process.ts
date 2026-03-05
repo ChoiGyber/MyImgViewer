@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, clipboard, nativeImage, shell } from 'electron'
 import sharp from 'sharp'
 import * as fs from 'fs'
 
@@ -88,5 +88,19 @@ export function registerImageProcessHandlers(): void {
     const output = await pipeline.toBuffer()
     fs.writeFileSync(outputPath, output)
     return { success: true, outputPath }
+  })
+
+  // Copy image to clipboard
+  ipcMain.handle('image:copyToClipboard', async (_e, filePath: string) => {
+    const buffer = fs.readFileSync(filePath)
+    const img = nativeImage.createFromBuffer(buffer)
+    clipboard.writeImage(img)
+    return { success: true }
+  })
+
+  // Delete image file (move to trash)
+  ipcMain.handle('image:delete', async (_e, filePath: string) => {
+    await shell.trashItem(filePath)
+    return { success: true }
   })
 }

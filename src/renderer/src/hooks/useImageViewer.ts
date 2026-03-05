@@ -20,6 +20,7 @@ interface ImageViewerActions {
   zoomOut: () => void
   resetZoom: () => void
   reloadCurrent: () => Promise<void>
+  clearImage: () => void
 }
 
 function extractDir(filePath: string): string {
@@ -130,6 +131,12 @@ export function useImageViewer(): ImageViewerState & ImageViewerActions {
     return cleanup
   }, [loadImage])
 
+  const clearImage = useCallback(() => {
+    setImage(null)
+    setFolderImages(null)
+    setZoom(100)
+  }, [])
+
   return {
     image,
     folderImages,
@@ -145,6 +152,7 @@ export function useImageViewer(): ImageViewerState & ImageViewerActions {
     zoomIn,
     zoomOut,
     resetZoom,
-    reloadCurrent
+    reloadCurrent,
+    clearImage
   }
 }

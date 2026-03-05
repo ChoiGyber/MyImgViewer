@@ -21,6 +21,23 @@ const api = {
   getFolderThumbnails: (dirPath: string) => ipcRenderer.invoke('folder:thumbnails', dirPath),
   listDirs: (dirPath: string): Promise<string[]> => ipcRenderer.invoke('folder:listDirs', dirPath),
 
+  // Shell
+  openPath: (filePath: string): Promise<void> => ipcRenderer.invoke('shell:openPath', filePath),
+
+  // History (undo/redo)
+  historyBeforeEdit: (filePath: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('history:beforeEdit', filePath),
+  historyUndo: (filePath: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('history:undo', filePath),
+  historyRedo: (filePath: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('history:redo', filePath),
+
+  // Image actions
+  copyImageToClipboard: (filePath: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('image:copyToClipboard', filePath),
+  deleteImage: (filePath: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('image:delete', filePath),
+
   // Image processing
   convert: (options: {
     filePath: string

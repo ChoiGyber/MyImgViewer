@@ -1,5 +1,5 @@
 appId: com.myimgviewer
-productName: MyImgViewer
+productName: My Zip
 directories:
   buildResources: resources
 files:
@@ -13,7 +13,7 @@ asarUnpack:
   - node_modules/sharp/**
   - node_modules/@img/**
 win:
-  executableName: MyImgViewer
+  executableName: My Zip
   target:
     - target: nsis
       arch:
@@ -46,8 +46,8 @@ win:
       role: Viewer
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
-  shortcutName: MyImgViewer
-  uninstallDisplayName: MyImgViewer
+  shortcutName: My Zip
+  uninstallDisplayName: My Zip
   oneClick: false
   allowToChangeInstallationDirectory: true
   deleteAppDataOnUninstall: true

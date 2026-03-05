@@ -1,4 +1,4 @@
-import { ipcMain, dialog, BrowserWindow } from 'electron'
+import { ipcMain, dialog } from 'electron'
 import sharp from 'sharp'
 import * as path from 'path'
 import * as fs from 'fs'

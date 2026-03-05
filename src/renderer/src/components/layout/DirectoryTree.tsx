@@ -33,7 +33,7 @@ function normalizePath(p: string): string {
 }
 
 export function DirectoryTree({
-  rootPath,
+  rootPath: _rootPath,
   currentPath,
   onSelectFolder
 }: DirectoryTreeProps): React.JSX.Element {

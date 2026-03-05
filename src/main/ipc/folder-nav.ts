@@ -1,16 +1,10 @@
-import { ipcMain } from 'electron'
+import { ipcMain, shell } from 'electron'
 import sharp from 'sharp'
 import * as path from 'path'
 import * as fs from 'fs'
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tiff', '.tif', '.gif', '.bmp', '.svg', '.heic', '.heif']
 
-const mimeMap: Record<string, string> = {
-  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
-  webp: 'image/webp', avif: 'image/avif', tiff: 'image/tiff',
-  tif: 'image/tiff', gif: 'image/gif', svg: 'image/svg+xml', bmp: 'image/bmp',
-  heic: 'image/heic', heif: 'image/heif'
-}
 
 export function registerFolderNavHandlers(): void {
   ipcMain.handle('folder:listDirs', async (_e, dirPath: string) => {
@@ -38,36 +32,47 @@ export function registerFolderNavHandlers(): void {
     }
   })
 
-  // Return folder images with small thumbnails
+  // Return folder contents with thumbnails (directories + images + PDFs)
   ipcMain.handle('folder:thumbnails', async (_e, dirPath: string) => {
     try {
-      const allFiles = fs.readdirSync(dirPath)
-      const imageFiles = allFiles
-        .filter((f) => IMAGE_EXTENSIONS.includes(path.extname(f).toLowerCase()))
-        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+      const entries = fs.readdirSync(dirPath, { withFileTypes: true })
+      const results: { filePath: string; fileName: string; thumbnail: string; type: 'folder' | 'image' | 'pdf' }[] = []
 
-      const results: { filePath: string; fileName: string; thumbnail: string }[] = []
+      // 1) Subdirectories first
+      const dirs = entries
+        .filter((e) => e.isDirectory())
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+      for (const d of dirs) {
+        results.push({
+          filePath: path.join(dirPath, d.name),
+          fileName: d.name,
+          thumbnail: '',
+          type: 'folder'
+        })
+      }
 
-      for (const f of imageFiles) {
-        const filePath = path.join(dirPath, f)
-        try {
-          const buffer = fs.readFileSync(filePath)
-          const thumbBuf = await sharp(buffer)
-            .resize(120, 120, { fit: 'cover' })
-            .jpeg({ quality: 60 })
-            .toBuffer()
-          const thumbnail = `data:image/jpeg;base64,${thumbBuf.toString('base64')}`
-          results.push({ filePath, fileName: f, thumbnail })
-        } catch {
-          // If sharp fails, use a placeholder based on extension
-          const ext = path.extname(f).slice(1).toLowerCase()
-          const mime = mimeMap[ext] || 'image/png'
+      // 2) Images + PDFs
+      const files = entries
+        .filter((e) => e.isFile())
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+
+      for (const f of files) {
+        const ext = path.extname(f.name).toLowerCase()
+        const filePath = path.join(dirPath, f.name)
+
+        if (ext === '.pdf') {
+          results.push({ filePath, fileName: f.name, thumbnail: '', type: 'pdf' })
+        } else if (IMAGE_EXTENSIONS.includes(ext)) {
           try {
-            const raw = fs.readFileSync(filePath)
-            const thumbnail = `data:${mime};base64,${raw.toString('base64').slice(0, 200)}`
-            results.push({ filePath, fileName: f, thumbnail: '' })
+            const buffer = fs.readFileSync(filePath)
+            const thumbBuf = await sharp(buffer)
+              .resize(120, 120, { fit: 'cover' })
+              .jpeg({ quality: 60 })
+              .toBuffer()
+            const thumbnail = `data:image/jpeg;base64,${thumbBuf.toString('base64')}`
+            results.push({ filePath, fileName: f.name, thumbnail, type: 'image' })
           } catch {
-            results.push({ filePath, fileName: f, thumbnail: '' })
+            results.push({ filePath, fileName: f.name, thumbnail: '', type: 'image' })
           }
         }
       }
@@ -76,5 +81,9 @@ export function registerFolderNavHandlers(): void {
     } catch {
       return []
     }
+  })
+
+  ipcMain.handle('shell:openPath', async (_e, filePath: string) => {
+    await shell.openPath(filePath)
   })
 }
