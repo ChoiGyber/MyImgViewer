@@ -115,6 +115,16 @@ export function registerImageIOHandlers(): void {
     }
   })
 
+  ipcMain.handle('preview:loadPdf', async (_e, filePath: string) => {
+    const normalizedPath = path.normalize(filePath)
+    if (!fs.existsSync(normalizedPath)) {
+      throw new Error(`파일이 존재하지 않습니다: ${normalizedPath}`)
+    }
+    const buffer = fs.readFileSync(normalizedPath)
+    const base64 = buffer.toString('base64')
+    return `data:application/pdf;base64,${base64}`
+  })
+
   ipcMain.handle('folder:getImages', async (_e, filePath: string) => {
     const dir = path.dirname(filePath)
     const allFiles = fs.readdirSync(dir)

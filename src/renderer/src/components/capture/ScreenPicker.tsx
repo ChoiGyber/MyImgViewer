@@ -7,68 +7,77 @@ import {
   DialogDescription
 } from '@/components/ui/dialog'
 
-interface CaptureSource {
+interface ScreenSource {
   id: string
   name: string
   thumbnail: string
+  displayId: number
+  width: number
+  height: number
+  scaleFactor: number
 }
 
-interface WindowPickerProps {
+interface ScreenPickerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onCapture: (sourceId: string) => void
+  onSelect: (sourceId: string) => void
 }
 
-export function WindowPicker({
+export function ScreenPicker({
   open,
   onOpenChange,
-  onCapture
-}: WindowPickerProps): React.JSX.Element {
-  const [sources, setSources] = useState<CaptureSource[]>([])
+  onSelect
+}: ScreenPickerProps): React.JSX.Element {
+  const [sources, setSources] = useState<ScreenSource[]>([])
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!open) return
     setLoading(true)
     window.api
-      .getCaptureSources()
-      .then((s) => setSources(s))
+      .getScreenSources()
+      .then((s) => {
+        setSources(s)
+        // If only one screen, auto-select it
+        if (s.length === 1) {
+          onOpenChange(false)
+          onSelect(s[0].id)
+        }
+      })
       .catch(() => setSources([]))
       .finally(() => setLoading(false))
-  }, [open])
+  }, [open, onOpenChange, onSelect])
 
   const handleSelect = useCallback(
     (sourceId: string) => {
       onOpenChange(false)
-      onCapture(sourceId)
+      onSelect(sourceId)
     },
-    [onOpenChange, onCapture]
+    [onOpenChange, onSelect]
   )
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent style={{ maxWidth: 720, maxHeight: '80vh' }}>
+      <DialogContent style={{ maxWidth: 600 }}>
         <DialogHeader>
-          <DialogTitle>창 캡쳐</DialogTitle>
-          <DialogDescription>캡쳐할 프로그램 창을 선택하세요</DialogDescription>
+          <DialogTitle>모니터 선택</DialogTitle>
+          <DialogDescription>캡쳐할 모니터를 선택하세요</DialogDescription>
         </DialogHeader>
 
         {loading ? (
           <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-            윈도우 목록 불러오는 중...
+            모니터 목록 불러오는 중...
           </div>
         ) : sources.length === 0 ? (
           <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-            캡쳐 가능한 창이 없습니다
+            사용 가능한 모니터가 없습니다
           </div>
         ) : (
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gridTemplateColumns: `repeat(${Math.min(sources.length, 3)}, 1fr)`,
               gap: 12,
-              maxHeight: '60vh',
-              overflowY: 'auto',
               padding: '4px 0'
             }}
           >
@@ -76,14 +85,14 @@ export function WindowPicker({
               <button
                 key={s.id}
                 onClick={() => handleSelect(s.id)}
-                className="flex flex-col items-center gap-2 p-2 rounded-lg border hover:bg-accent cursor-pointer transition-colors"
+                className="flex flex-col items-center gap-2 p-3 rounded-lg border hover:bg-accent cursor-pointer transition-colors"
               >
                 <img
                   src={s.thumbnail}
                   alt={s.name}
                   style={{
                     width: '100%',
-                    height: 120,
+                    height: 100,
                     objectFit: 'contain',
                     borderRadius: 4,
                     background: 'var(--color-muted)'

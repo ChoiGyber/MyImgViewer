@@ -63,7 +63,6 @@ export function RectangleCapture({
     const rect = el.getBoundingClientRect()
     const { scaleFactor } = screenData
 
-    // Calculate selection in screen pixels (scaled to actual capture resolution)
     const scaleX = (screenData.screenWidth * scaleFactor) / rect.width
     const scaleY = (screenData.screenHeight * scaleFactor) / rect.height
 
@@ -75,7 +74,6 @@ export function RectangleCapture({
     const w = x2 - x1
     const h = y2 - y1
 
-    // Minimum selection size
     if (w < 5 || h < 5) {
       setStart(null)
       setCurrent(null)
@@ -90,7 +88,6 @@ export function RectangleCapture({
     })
   }, [isDragging, start, current, screenData, onCapture])
 
-  // ESC to cancel
   useEffect(() => {
     const handler = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onCancel()
@@ -109,6 +106,8 @@ export function RectangleCapture({
           height: Math.abs(current.y - start.y)
         }
       : null
+
+  const overlayColor = 'rgba(0,0,0,0.4)'
 
   return (
     <div
@@ -139,47 +138,58 @@ export function RectangleCapture({
         draggable={false}
       />
 
-      {/* Dark overlay */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'rgba(0,0,0,0.3)',
-          pointerEvents: 'none'
-        }}
-      />
-
-      {/* Selection highlight */}
-      {selRect && selRect.width > 0 && selRect.height > 0 && (
+      {/* Overlay: 4 dark rectangles around selection, or full overlay if no selection */}
+      {selRect && selRect.width > 0 && selRect.height > 0 ? (
         <>
-          {/* Clear area (shows screenshot without dark overlay) */}
+          {/* Top */}
           <div
             style={{
               position: 'absolute',
-              left: selRect.left,
-              top: selRect.top,
-              width: selRect.width,
-              height: selRect.height,
-              overflow: 'hidden',
+              left: 0,
+              top: 0,
+              right: 0,
+              height: selRect.top,
+              background: overlayColor,
               pointerEvents: 'none'
             }}
-          >
-            <img
-              src={screenData.dataUrl}
-              alt=""
-              style={{
-                position: 'absolute',
-                left: -selRect.left,
-                top: -selRect.top,
-                width: containerRef.current?.clientWidth || '100%',
-                height: containerRef.current?.clientHeight || '100%',
-                objectFit: 'fill',
-                pointerEvents: 'none'
-              }}
-              draggable={false}
-            />
-          </div>
-          {/* Border */}
+          />
+          {/* Bottom */}
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: selRect.top + selRect.height,
+              right: 0,
+              bottom: 0,
+              background: overlayColor,
+              pointerEvents: 'none'
+            }}
+          />
+          {/* Left */}
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: selRect.top,
+              width: selRect.left,
+              height: selRect.height,
+              background: overlayColor,
+              pointerEvents: 'none'
+            }}
+          />
+          {/* Right */}
+          <div
+            style={{
+              position: 'absolute',
+              left: selRect.left + selRect.width,
+              top: selRect.top,
+              right: 0,
+              height: selRect.height,
+              background: overlayColor,
+              pointerEvents: 'none'
+            }}
+          />
+          {/* Selection border */}
           <div
             style={{
               position: 'absolute',
@@ -209,6 +219,16 @@ export function RectangleCapture({
             {Math.round(selRect.height * screenData.scaleFactor)}
           </div>
         </>
+      ) : (
+        /* Full dark overlay when no selection */
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: overlayColor,
+            pointerEvents: 'none'
+          }}
+        />
       )}
 
       {/* Instructions */}

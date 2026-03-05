@@ -11,7 +11,10 @@ import {
   Moon,
   PanelLeftOpen,
   PanelLeftClose,
+  PanelRightOpen,
+  PanelRightClose,
   AppWindow,
+  Monitor,
   Square
 } from 'lucide-react'
 
@@ -24,10 +27,13 @@ interface ToolbarProps {
   onResize: () => void
   onRotateFlip: () => void
   onBatchResize: () => void
+  onCaptureFullScreen: () => void
   onCaptureWindow: () => void
   onCaptureRect: () => void
   onToggleTheme: () => void
   onToggleSidebar: () => void
+  previewOpen: boolean
+  onTogglePreview: () => void
 }
 
 export function Toolbar({
@@ -39,10 +45,13 @@ export function Toolbar({
   onResize,
   onRotateFlip,
   onBatchResize,
+  onCaptureFullScreen,
   onCaptureWindow,
   onCaptureRect,
   onToggleTheme,
-  onToggleSidebar
+  onToggleSidebar,
+  previewOpen,
+  onTogglePreview
 }: ToolbarProps): React.JSX.Element {
   return (
     <div className="flex items-center gap-1 py-1.5 pr-4 border-b bg-background" style={{ paddingLeft: 10 }}>
@@ -59,24 +68,24 @@ export function Toolbar({
         <TooltipContent>{sidebarOpen ? '사이드바 닫기' : '사이드바 열기'}</TooltipContent>
       </Tooltip>
 
-      <Separator orientation="vertical" className="h-6 mx-1" />
+      <Separator orientation="vertical" className="h-6 mx-3" />
 
       <Tooltip>
         <TooltipTrigger asChild>
           <Button variant="ghost" size="sm" onClick={onOpen}>
-            <FolderOpen className="h-4 w-4 mr-1" />
+            <FolderOpen className="h-4 w-4" />
             열기
           </Button>
         </TooltipTrigger>
         <TooltipContent>파일 열기 (Ctrl+O)</TooltipContent>
       </Tooltip>
 
-      <Separator orientation="vertical" className="h-6 mx-1" />
+      <Separator orientation="vertical" className="h-6 mx-3" />
 
       <Tooltip>
         <TooltipTrigger asChild>
           <Button variant="ghost" size="sm" onClick={onConvert} disabled={!hasImage}>
-            <RefreshCw className="h-4 w-4 mr-1" />
+            <RefreshCw className="h-4 w-4" />
             변환
           </Button>
         </TooltipTrigger>
@@ -86,7 +95,7 @@ export function Toolbar({
       <Tooltip>
         <TooltipTrigger asChild>
           <Button variant="ghost" size="sm" onClick={onResize} disabled={!hasImage}>
-            <Maximize className="h-4 w-4 mr-1" />
+            <Maximize className="h-4 w-4" />
             크기조절
           </Button>
         </TooltipTrigger>
@@ -96,41 +105,51 @@ export function Toolbar({
       <Tooltip>
         <TooltipTrigger asChild>
           <Button variant="ghost" size="sm" onClick={onRotateFlip} disabled={!hasImage}>
-            <RotateCw className="h-4 w-4 mr-1" />
+            <RotateCw className="h-4 w-4" />
             회전/반전
           </Button>
         </TooltipTrigger>
         <TooltipContent>회전/반전</TooltipContent>
       </Tooltip>
 
-      <Separator orientation="vertical" className="h-6 mx-1" />
+      <Separator orientation="vertical" className="h-6 mx-3" />
 
       <Tooltip>
         <TooltipTrigger asChild>
           <Button variant="ghost" size="sm" onClick={onBatchResize}>
-            <Layers className="h-4 w-4 mr-1" />
+            <Layers className="h-4 w-4" />
             일괄 크기줄이기
           </Button>
         </TooltipTrigger>
         <TooltipContent>여러 이미지 일괄 크기 줄이기</TooltipContent>
       </Tooltip>
 
-      <Separator orientation="vertical" className="h-6 mx-1" />
+      <Separator orientation="vertical" className="h-6 mx-3" />
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="sm" onClick={onCaptureFullScreen}>
+            <Monitor className="h-4 w-4" />
+            전체화면캡쳐
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>전체 화면 캡쳐</TooltipContent>
+      </Tooltip>
 
       <Tooltip>
         <TooltipTrigger asChild>
           <Button variant="ghost" size="sm" onClick={onCaptureWindow}>
-            <AppWindow className="h-4 w-4 mr-1" />
+            <AppWindow className="h-4 w-4" />
             창캡쳐
           </Button>
         </TooltipTrigger>
-        <TooltipContent>창 캡쳐</TooltipContent>
+        <TooltipContent>실행 중인 창 캡쳐</TooltipContent>
       </Tooltip>
 
       <Tooltip>
         <TooltipTrigger asChild>
           <Button variant="ghost" size="sm" onClick={onCaptureRect}>
-            <Square className="h-4 w-4 mr-1" />
+            <Square className="h-4 w-4" />
             사각형캡쳐
           </Button>
         </TooltipTrigger>
@@ -138,6 +157,22 @@ export function Toolbar({
       </Tooltip>
 
       <div className="flex-1" />
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="sm" onClick={onTogglePreview}>
+            {previewOpen ? (
+              <PanelRightClose className="h-4 w-4" />
+            ) : (
+              <PanelRightOpen className="h-4 w-4" />
+            )}
+            미리보기
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{previewOpen ? '미리보기 닫기' : '미리보기 열기'}</TooltipContent>
+      </Tooltip>
+
+      <Separator orientation="vertical" className="h-6 mx-2" />
 
       <Tooltip>
         <TooltipTrigger asChild>

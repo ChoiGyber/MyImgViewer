@@ -11,8 +11,10 @@ import { FolderBrowser } from '@/components/viewer/FolderBrowser'
 import { ConvertDialog } from '@/components/dialogs/ConvertDialog'
 import { ResizeDialog } from '@/components/dialogs/ResizeDialog'
 import { BatchResizeDialog } from '@/components/dialogs/BatchResizeDialog'
+import { BatchProcessDialog } from '@/components/dialogs/BatchProcessDialog'
 import { RotateFlipPanel } from '@/components/dialogs/RotateFlipPanel'
 import { WindowPicker } from '@/components/capture/WindowPicker'
+import { ScreenPicker } from '@/components/capture/ScreenPicker'
 import { RectangleCapture } from '@/components/capture/RectangleCapture'
 import { useImageViewer } from '@/hooks/useImageViewer'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
@@ -28,7 +30,12 @@ function App(): React.JSX.Element {
   const [rotateOpen, setRotateOpen] = useState(false)
   const [batchOpen, setBatchOpen] = useState(false)
   const [folderBrowserOpen, setFolderBrowserOpen] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [batchProcessOpen, setBatchProcessOpen] = useState(false)
+  const [batchProcessMode, setBatchProcessMode] = useState<'resize' | 'transform' | 'convert'>('resize')
+  const [batchProcessFiles, setBatchProcessFiles] = useState<string[]>([])
   const [windowPickerOpen, setWindowPickerOpen] = useState(false)
+  const [screenPickerOpen, setScreenPickerOpen] = useState(false)
   const [rectCaptureData, setRectCaptureData] = useState<{
     dataUrl: string
     screenWidth: number
@@ -92,28 +99,44 @@ function App(): React.JSX.Element {
   const handleCaptureWindow = useCallback(
     async (sourceId: string) => {
       try {
-        const result = await window.api.captureWindow(sourceId)
-        const saveDir = getSaveFolder()
-        if (!saveDir) {
-          alert('저장할 폴더가 없습니다. 먼저 폴더를 열어주세요.')
-          return
-        }
-        const savedPath = await window.api.saveCaptureToFolder(result.buffer.data, saveDir)
-        await viewer.loadImage(savedPath)
+        const result = await window.api.captureWindowAndSave(sourceId)
+        await viewer.loadImage(result.filePath)
+        setFolderBrowserDir(result.screenshotsDir)
+        setFolderBrowserOpen(true)
       } catch (err) {
         alert(`캡쳐 실패: ${(err as Error).message}`)
       }
     },
-    [getSaveFolder, viewer.loadImage]
+    [viewer.loadImage]
   )
 
-  const handleStartRectCapture = useCallback(async () => {
+  const handleCaptureFullScreen = useCallback(async () => {
     try {
       await window.api.hideMainWindow()
-      // Small delay to let the window fully hide
       await new Promise((r) => setTimeout(r, 300))
-      const screenData = await window.api.captureScreen()
+      const result = await window.api.captureFullScreenAndSave()
       await window.api.showMainWindow()
+      await viewer.loadImage(result.filePath)
+      setFolderBrowserDir(result.screenshotsDir)
+      setFolderBrowserOpen(true)
+    } catch (err) {
+      await window.api.showMainWindow()
+      alert(`캡쳐 실패: ${(err as Error).message}`)
+    }
+  }, [viewer.loadImage])
+
+  const handleStartRectCapture = useCallback(() => {
+    // Check for multiple screens - show screen picker if needed
+    setScreenPickerOpen(true)
+  }, [])
+
+  const handleScreenSelected = useCallback(async (screenSourceId: string) => {
+    try {
+      await window.api.hideMainWindow()
+      await new Promise((r) => setTimeout(r, 300))
+      const screenData = await window.api.captureScreen(screenSourceId)
+      await window.api.enterFullscreen()
+      await new Promise((r) => setTimeout(r, 200))
       setRectCaptureData(screenData)
     } catch (err) {
       await window.api.showMainWindow()
@@ -125,24 +148,24 @@ function App(): React.JSX.Element {
     async (rect: { x: number; y: number; width: number; height: number }) => {
       if (!rectCaptureData) return
       try {
-        const saveDir = getSaveFolder()
-        if (!saveDir) {
-          alert('저장할 폴더가 없습니다. 먼저 폴더를 열어주세요.')
-          setRectCaptureData(null)
-          return
-        }
+        await window.api.exitFullscreen()
+        const saveDir = await window.api.getScreenshotsDir()
         const savedPath = await window.api.cropAndSave(rectCaptureData.dataUrl, rect, saveDir)
         setRectCaptureData(null)
         await viewer.loadImage(savedPath)
+        setFolderBrowserDir(saveDir)
+        setFolderBrowserOpen(true)
       } catch (err) {
+        await window.api.exitFullscreen()
         setRectCaptureData(null)
         alert(`캡쳐 저장 실패: ${(err as Error).message}`)
       }
     },
-    [rectCaptureData, getSaveFolder, viewer.loadImage]
+    [rectCaptureData, viewer.loadImage]
   )
 
-  const handleRectCancel = useCallback(() => {
+  const handleRectCancel = useCallback(async () => {
+    await window.api.exitFullscreen()
     setRectCaptureData(null)
   }, [])
 
@@ -298,6 +321,15 @@ function App(): React.JSX.Element {
     }
   }, [refreshFolderBrowser, viewer.image, viewer.reloadCurrent])
 
+  const handleBatchAction = useCallback(
+    (mode: 'resize' | 'transform' | 'convert', files: string[]) => {
+      setBatchProcessMode(mode)
+      setBatchProcessFiles(files)
+      setBatchProcessOpen(true)
+    },
+    []
+  )
+
   const handleListCopy = useCallback(async (filePath: string) => {
     try {
       await window.api.copyImageToClipboard(filePath)
@@ -340,10 +372,13 @@ function App(): React.JSX.Element {
             onResize={() => setResizeOpen(true)}
             onRotateFlip={() => setRotateOpen(true)}
             onBatchResize={() => setBatchOpen(true)}
+            onCaptureFullScreen={handleCaptureFullScreen}
             onCaptureWindow={() => setWindowPickerOpen(true)}
             onCaptureRect={handleStartRectCapture}
             onToggleTheme={toggleTheme}
             onToggleSidebar={toggleSidebar}
+            previewOpen={previewOpen}
+            onTogglePreview={() => setPreviewOpen((v) => !v)}
           />
         }
         directoryBar={
@@ -387,6 +422,7 @@ function App(): React.JSX.Element {
             onResize={handleQuickResize}
             onCopy={handleCopyImage}
             onDelete={handleDeleteImage}
+            onConvert={() => setConvertOpen(true)}
           />
         )}
         <DropZone
@@ -417,6 +453,8 @@ function App(): React.JSX.Element {
           onResize={handleListResize}
           onCopy={handleListCopy}
           onDelete={handleListDelete}
+          onBatchAction={handleBatchAction}
+          previewOpen={previewOpen}
         />
 
         {viewer.loading && (
@@ -478,12 +516,25 @@ function App(): React.JSX.Element {
         </>
       )}
       <BatchResizeDialog open={batchOpen} onOpenChange={setBatchOpen} />
+      <BatchProcessDialog
+        open={batchProcessOpen}
+        onOpenChange={setBatchProcessOpen}
+        mode={batchProcessMode}
+        filePaths={batchProcessFiles}
+        sourceDir={folderBrowserDir || folderPath}
+        onComplete={refreshFolderBrowser}
+      />
 
       {/* Capture dialogs */}
       <WindowPicker
         open={windowPickerOpen}
         onOpenChange={setWindowPickerOpen}
         onCapture={handleCaptureWindow}
+      />
+      <ScreenPicker
+        open={screenPickerOpen}
+        onOpenChange={setScreenPickerOpen}
+        onSelect={handleScreenSelected}
       />
       {rectCaptureData && (
         <RectangleCapture

@@ -217,7 +217,7 @@ export function DirectoryTree({
         {/* Quick access */}
         {quickAccessItems.length > 0 && (
           <>
-            <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground">빠른 접근</div>
+            <div className="py-1.5 text-xs font-medium text-muted-foreground" style={{ paddingLeft: 12 }}>빠른 접근</div>
             {quickAccessItems.map((item) => (
               <button
                 key={item.path}

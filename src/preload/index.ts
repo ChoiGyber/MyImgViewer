@@ -21,6 +21,9 @@ const api = {
   getFolderThumbnails: (dirPath: string) => ipcRenderer.invoke('folder:thumbnails', dirPath),
   listDirs: (dirPath: string): Promise<string[]> => ipcRenderer.invoke('folder:listDirs', dirPath),
 
+  // Preview
+  loadPdf: (filePath: string): Promise<string> => ipcRenderer.invoke('preview:loadPdf', filePath),
+
   // Shell
   openPath: (filePath: string): Promise<void> => ipcRenderer.invoke('shell:openPath', filePath),
 
@@ -67,9 +70,25 @@ const api = {
     filePaths: string[]
     width?: number
     height?: number
+    percent?: number
     fit: string
     outputDir: string
   }) => ipcRenderer.invoke('batch:resize', options),
+
+  batchTransform: (options: {
+    filePaths: string[]
+    rotate?: number
+    flipH?: boolean
+    flipV?: boolean
+    outputDir: string
+  }) => ipcRenderer.invoke('batch:transform', options),
+
+  batchConvert: (options: {
+    filePaths: string[]
+    outputFormat: string
+    quality: number
+    outputDir: string
+  }) => ipcRenderer.invoke('batch:convert', options),
 
   onBatchProgress: (
     callback: (progress: { current: number; total: number; currentFile: string }) => void
@@ -86,10 +105,14 @@ const api = {
   // Screen capture
   getCaptureSources: (): Promise<{ id: string; name: string; thumbnail: string }[]> =>
     ipcRenderer.invoke('capture:getSources'),
-  captureWindow: (sourceId: string): Promise<{ buffer: { type: string; data: number[] } }> =>
-    ipcRenderer.invoke('capture:captureWindow', sourceId),
-  captureScreen: (): Promise<{ dataUrl: string; screenWidth: number; screenHeight: number; scaleFactor: number }> =>
-    ipcRenderer.invoke('capture:captureScreen'),
+  getScreenSources: (): Promise<{ id: string; name: string; thumbnail: string; displayId: number; width: number; height: number; scaleFactor: number }[]> =>
+    ipcRenderer.invoke('capture:getScreenSources'),
+  captureWindowAndSave: (sourceId: string): Promise<{ filePath: string; screenshotsDir: string }> =>
+    ipcRenderer.invoke('capture:captureWindowAndSave', sourceId),
+  captureFullScreenAndSave: (): Promise<{ filePath: string; screenshotsDir: string }> =>
+    ipcRenderer.invoke('capture:captureFullScreenAndSave'),
+  captureScreen: (screenSourceId?: string): Promise<{ dataUrl: string; screenWidth: number; screenHeight: number; scaleFactor: number }> =>
+    ipcRenderer.invoke('capture:captureScreen', screenSourceId),
   saveCaptureToFolder: (buffer: number[], folderPath: string): Promise<string> =>
     ipcRenderer.invoke('capture:saveAndCopy', buffer, folderPath),
   cropAndSave: (
@@ -97,10 +120,14 @@ const api = {
     rect: { x: number; y: number; width: number; height: number },
     folderPath: string
   ): Promise<string> => ipcRenderer.invoke('capture:cropAndSave', dataUrl, rect, folderPath),
+  getScreenshotsDir: (): Promise<string> =>
+    ipcRenderer.invoke('capture:getScreenshotsDir'),
   getQuickPaths: (): Promise<{ home: string; pictures: string; downloads: string; documents: string }> =>
     ipcRenderer.invoke('capture:getQuickPaths'),
   hideMainWindow: (): Promise<void> => ipcRenderer.invoke('capture:hideMainWindow'),
   showMainWindow: (): Promise<void> => ipcRenderer.invoke('capture:showMainWindow'),
+  enterFullscreen: (): Promise<void> => ipcRenderer.invoke('capture:enterFullscreen'),
+  exitFullscreen: (): Promise<void> => ipcRenderer.invoke('capture:exitFullscreen'),
 
   // File association
   onFileOpen: (callback: (filePath: string) => void) => {

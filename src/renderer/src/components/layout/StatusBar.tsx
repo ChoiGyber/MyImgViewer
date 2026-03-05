@@ -31,7 +31,7 @@ export function StatusBar({
     : ''
 
   return (
-    <div className="flex items-center gap-2 px-3 py-1 border-t bg-background text-xs text-muted-foreground">
+    <div className="flex items-center gap-2 py-1 border-t bg-background text-xs text-muted-foreground" style={{ paddingLeft: 12, paddingRight: 12 }}>
       {image ? (
         <>
           <span className="truncate max-w-[300px]" title={image.filePath}>

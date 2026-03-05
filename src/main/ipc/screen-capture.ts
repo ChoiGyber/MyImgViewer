@@ -23,54 +23,58 @@ export function registerScreenCaptureHandlers(): void {
     }))
   })
 
-  // Capture a specific window by source ID
-  ipcMain.handle('capture:captureWindow', async (_e, sourceId: string) => {
+  // Get screen sources for multi-monitor support
+  ipcMain.handle('capture:getScreenSources', async () => {
+    const displays = screen.getAllDisplays()
     const sources = await desktopCapturer.getSources({
-      types: ['window'],
-      thumbnailSize: { width: 1920, height: 1080 }
+      types: ['screen'],
+      thumbnailSize: { width: 300, height: 200 }
     })
-    const source = sources.find((s) => s.id === sourceId)
-    if (!source) throw new Error('소스를 찾을 수 없습니다')
-
-    // Get high-res capture via a hidden window
-    const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0]
-    if (!win) throw new Error('윈도우를 찾을 수 없습니다')
-
-    // Use the main window's webContents to capture the source via getUserMedia
-    const image = await win.webContents.executeJavaScript(`
-      (async () => {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: {
-            mandatory: {
-              chromeMediaSource: 'desktop',
-              chromeMediaSourceId: '${sourceId}',
-              maxWidth: 3840,
-              maxHeight: 2160
-            }
-          }
-        });
-        const video = document.createElement('video');
-        video.srcObject = stream;
-        await video.play();
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0);
-        stream.getTracks().forEach(t => t.stop());
-        return canvas.toDataURL('image/jpeg', 0.95);
-      })()
-    `)
-
-    // Convert data URL to buffer
-    const base64 = image.replace(/^data:image\/\w+;base64,/, '')
-    const buffer = Buffer.from(base64, 'base64')
-    return { buffer: buffer.toJSON(), width: 0, height: 0 }
+    return sources.map((s, i) => {
+      const display = displays[i]
+      return {
+        id: s.id,
+        name: display ? `모니터 ${i + 1} (${display.size.width}x${display.size.height})` : s.name,
+        thumbnail: s.thumbnail.toDataURL(),
+        displayId: display?.id,
+        width: display?.size.width || 1920,
+        height: display?.size.height || 1080,
+        scaleFactor: display?.scaleFactor || 1
+      }
+    })
   })
 
-  // Capture entire screen for rectangle selection
-  ipcMain.handle('capture:captureScreen', async () => {
+  // Capture a specific window and save directly (uses desktopCapturer thumbnail at full resolution)
+  ipcMain.handle('capture:captureWindowAndSave', async (_e, sourceId: string) => {
+    // Re-fetch the source at high resolution
+    const sources = await desktopCapturer.getSources({
+      types: ['window'],
+      thumbnailSize: { width: 3840, height: 2160 }
+    })
+    const source = sources.find((s) => s.id === sourceId)
+    if (!source) throw new Error('캡쳐할 창을 찾을 수 없습니다')
+
+    const pngBuf = source.thumbnail.toPNG()
+    const jpegBuf = await sharp(pngBuf).jpeg({ quality: 92 }).toBuffer()
+
+    // Save to Screenshots folder
+    const screenshotsDir = path.join(app.getPath('pictures'), 'Screenshots')
+    if (!fs.existsSync(screenshotsDir)) {
+      fs.mkdirSync(screenshotsDir, { recursive: true })
+    }
+    const fileName = randomFileName()
+    const filePath = path.join(screenshotsDir, fileName)
+    fs.writeFileSync(filePath, jpegBuf)
+
+    // Copy to clipboard
+    const img = nativeImage.createFromBuffer(jpegBuf)
+    clipboard.writeImage(img)
+
+    return { filePath, screenshotsDir }
+  })
+
+  // Capture full screen and save directly
+  ipcMain.handle('capture:captureFullScreenAndSave', async () => {
     const primaryDisplay = screen.getPrimaryDisplay()
     const { width, height } = primaryDisplay.size
     const scaleFactor = primaryDisplay.scaleFactor
@@ -82,38 +86,62 @@ export function registerScreenCaptureHandlers(): void {
         height: Math.floor(height * scaleFactor)
       }
     })
+    if (sources.length === 0) throw new Error('스크린 소스를 찾을 수 없습니다')
+
+    const pngBuf = sources[0].thumbnail.toPNG()
+    const jpegBuf = await sharp(pngBuf).jpeg({ quality: 92 }).toBuffer()
+
+    const screenshotsDir = path.join(app.getPath('pictures'), 'Screenshots')
+    if (!fs.existsSync(screenshotsDir)) {
+      fs.mkdirSync(screenshotsDir, { recursive: true })
+    }
+    const fileName = randomFileName()
+    const filePath = path.join(screenshotsDir, fileName)
+    fs.writeFileSync(filePath, jpegBuf)
+
+    const img = nativeImage.createFromBuffer(jpegBuf)
+    clipboard.writeImage(img)
+
+    return { filePath, screenshotsDir }
+  })
+
+  // Capture a specific screen for rectangle selection (supports multi-monitor)
+  ipcMain.handle('capture:captureScreen', async (_e, screenSourceId?: string) => {
+    const displays = screen.getAllDisplays()
+    const sources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: { width: 3840, height: 2160 }
+    })
 
     if (sources.length === 0) throw new Error('스크린 소스를 찾을 수 없습니다')
 
-    const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0]
-    if (!win) throw new Error('윈도우를 찾을 수 없습니다')
+    // Find the requested source or use primary
+    let source = sources[0]
+    let display = displays[0] || screen.getPrimaryDisplay()
 
-    const sourceId = sources[0].id
-    const dataUrl: string = await win.webContents.executeJavaScript(`
-      (async () => {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: {
-            mandatory: {
-              chromeMediaSource: 'desktop',
-              chromeMediaSourceId: '${sourceId}',
-              maxWidth: ${Math.floor(width * scaleFactor)},
-              maxHeight: ${Math.floor(height * scaleFactor)}
-            }
-          }
-        });
-        const video = document.createElement('video');
-        video.srcObject = stream;
-        await video.play();
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0);
-        stream.getTracks().forEach(t => t.stop());
-        return canvas.toDataURL('image/png');
-      })()
-    `)
+    if (screenSourceId) {
+      const found = sources.find((s) => s.id === screenSourceId)
+      if (found) {
+        source = found
+        const idx = sources.indexOf(found)
+        if (displays[idx]) display = displays[idx]
+      }
+    }
+
+    const { width, height } = display.size
+    const scaleFactor = display.scaleFactor
+
+    // Re-fetch at exact resolution for the selected screen
+    const hiResSources = await desktopCapturer.getSources({
+      types: ['screen'],
+      thumbnailSize: {
+        width: Math.floor(width * scaleFactor),
+        height: Math.floor(height * scaleFactor)
+      }
+    })
+
+    const hiResSource = hiResSources.find((s) => s.id === source.id) || hiResSources[0]
+    const dataUrl = hiResSource.thumbnail.toDataURL()
 
     return { dataUrl, screenWidth: width, screenHeight: height, scaleFactor }
   })
@@ -179,6 +207,15 @@ export function registerScreenCaptureHandlers(): void {
     }
   )
 
+  // Get default screenshots folder (Windows: Pictures/Screenshots)
+  ipcMain.handle('capture:getScreenshotsDir', () => {
+    const screenshotsDir = path.join(app.getPath('pictures'), 'Screenshots')
+    if (!fs.existsSync(screenshotsDir)) {
+      fs.mkdirSync(screenshotsDir, { recursive: true })
+    }
+    return screenshotsDir
+  })
+
   // Quick access paths
   ipcMain.handle('capture:getQuickPaths', () => {
     return {
@@ -200,6 +237,23 @@ export function registerScreenCaptureHandlers(): void {
     if (win) {
       win.show()
       win.focus()
+    }
+  })
+
+  // Fullscreen for rectangle capture overlay
+  ipcMain.handle('capture:enterFullscreen', () => {
+    const win = BrowserWindow.getAllWindows()[0]
+    if (win) {
+      win.setFullScreen(true)
+      win.show()
+      win.focus()
+    }
+  })
+
+  ipcMain.handle('capture:exitFullscreen', () => {
+    const win = BrowserWindow.getAllWindows()[0]
+    if (win) {
+      win.setFullScreen(false)
     }
   })
 }
