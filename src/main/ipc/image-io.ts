@@ -133,7 +133,10 @@ export function registerImageIOHandlers(): void {
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
       .map((f) => path.join(dir, f))
 
-    const currentIndex = imageFiles.indexOf(filePath)
+    // Windows paths are case-insensitive and may arrive with mixed separators
+    const normalize = (p: string): string => path.normalize(p).toLowerCase()
+    const target = normalize(filePath)
+    const currentIndex = imageFiles.findIndex((f) => normalize(f) === target)
     return {
       files: imageFiles,
       currentIndex: currentIndex >= 0 ? currentIndex : 0

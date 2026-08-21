@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import type { ImageInfo, FolderImages } from '@/lib/types'
 
 interface ImageViewerState {
@@ -37,12 +37,22 @@ export function useImageViewer(): ImageViewerState & ImageViewerActions {
   const [error, setError] = useState<string | null>(null)
   const [lastDir, setLastDir] = useState(() => localStorage.getItem('lastDir') || '')
 
+  // Refs so navigation reads the latest index even while a previous load is in flight
+  const folderImagesRef = useRef<FolderImages | null>(null)
+  const navRequestRef = useRef(0)
+
+  const updateFolderImages = useCallback((fi: FolderImages | null) => {
+    folderImagesRef.current = fi
+    setFolderImages(fi)
+  }, [])
+
   const saveLastDir = useCallback((dir: string) => {
     setLastDir(dir)
     localStorage.setItem('lastDir', dir)
   }, [])
 
   const loadImage = useCallback(async (filePath: string) => {
+    navRequestRef.current++ // invalidate any in-flight navigation
     setLoading(true)
     setError(null)
     try {
@@ -54,13 +64,13 @@ export function useImageViewer(): ImageViewerState & ImageViewerActions {
       if (dir) saveLastDir(dir)
 
       const folder = await window.api.getImages(filePath)
-      setFolderImages(folder)
+      updateFolderImages(folder)
     } catch (err) {
       setError((err as Error).message)
     } finally {
       setLoading(false)
     }
-  }, [saveLastDir])
+  }, [saveLastDir, updateFolderImages])
 
   const openFile = useCallback(async () => {
     const filePath = await window.api.openFile()
@@ -71,39 +81,46 @@ export function useImageViewer(): ImageViewerState & ImageViewerActions {
 
   const navigateImage = useCallback(
     async (index: number) => {
-      if (!folderImages || index < 0 || index >= folderImages.files.length) return
-      const filePath = folderImages.files[index]
+      const folder = folderImagesRef.current
+      if (!folder || index < 0 || index >= folder.files.length) return
+      const filePath = folder.files[index]
+      // Advance the index immediately so each key press moves exactly one image,
+      // even while the previous image is still decoding
+      updateFolderImages({ ...folder, currentIndex: index })
+      const requestId = ++navRequestRef.current
       setLoading(true)
       setError(null)
       try {
         const info = await window.api.loadImage(filePath)
+        if (navRequestRef.current !== requestId) return // superseded by a newer request
         setImage(info)
         setZoom(100)
-        setFolderImages({ ...folderImages, currentIndex: index })
       } catch (err) {
-        setError((err as Error).message)
+        if (navRequestRef.current === requestId) setError((err as Error).message)
       } finally {
-        setLoading(false)
+        if (navRequestRef.current === requestId) setLoading(false)
       }
     },
-    [folderImages]
+    [updateFolderImages]
   )
 
   const nextImage = useCallback(async () => {
-    if (!folderImages) return
-    const next = folderImages.currentIndex + 1
-    if (next < folderImages.files.length) {
+    const folder = folderImagesRef.current
+    if (!folder) return
+    const next = folder.currentIndex + 1
+    if (next < folder.files.length) {
       await navigateImage(next)
     }
-  }, [folderImages, navigateImage])
+  }, [navigateImage])
 
   const prevImage = useCallback(async () => {
-    if (!folderImages) return
-    const prev = folderImages.currentIndex - 1
+    const folder = folderImagesRef.current
+    if (!folder) return
+    const prev = folder.currentIndex - 1
     if (prev >= 0) {
       await navigateImage(prev)
     }
-  }, [folderImages, navigateImage])
+  }, [navigateImage])
 
   const zoomIn = useCallback(() => {
     setZoom((z) => Math.min(z + 10, 500))
@@ -128,7 +145,7 @@ export function useImageViewer(): ImageViewerState & ImageViewerActions {
     } catch {
       // File no longer exists (deleted externally) - return dir for fallback
       setImage(null)
-      setFolderImages(null)
+      updateFolderImages(null)
       setZoom(100)
       return { fallbackDir: dir }
     }
@@ -144,9 +161,9 @@ export function useImageViewer(): ImageViewerState & ImageViewerActions {
 
   const clearImage = useCallback(() => {
     setImage(null)
-    setFolderImages(null)
+    updateFolderImages(null)
     setZoom(100)
-  }, [])
+  }, [updateFolderImages])
 
   return {
     image,
