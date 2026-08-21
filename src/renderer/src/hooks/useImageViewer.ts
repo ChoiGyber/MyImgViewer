@@ -19,7 +19,7 @@ interface ImageViewerActions {
   zoomIn: () => void
   zoomOut: () => void
   resetZoom: () => void
-  reloadCurrent: () => Promise<void>
+  reloadCurrent: () => Promise<{ fallbackDir?: string }>
   clearImage: () => void
 }
 
@@ -117,9 +117,20 @@ export function useImageViewer(): ImageViewerState & ImageViewerActions {
     setZoom(100)
   }, [])
 
-  const reloadCurrent = useCallback(async () => {
-    if (image) {
+  const reloadCurrent = useCallback(async (): Promise<{ fallbackDir?: string }> => {
+    if (!image) return {}
+    const dir = extractDir(image.filePath)
+    try {
+      // Check if the file still exists before full reload
+      await window.api.loadImage(image.filePath)
       await loadImage(image.filePath)
+      return {}
+    } catch {
+      // File no longer exists (deleted externally) - return dir for fallback
+      setImage(null)
+      setFolderImages(null)
+      setZoom(100)
+      return { fallbackDir: dir }
     }
   }, [image, loadImage])
 

@@ -1,5 +1,5 @@
 appId: com.myimgviewer
-productName: My Zip
+productName: MyImgViewer
 directories:
   buildResources: resources
 files:
@@ -8,12 +8,16 @@ files:
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!node_modules/pretendard/**'
 asarUnpack:
   - resources/**
   - node_modules/sharp/**
   - node_modules/@img/**
+electronLanguages:
+  - ko
+  - en-US
 win:
-  executableName: My Zip
+  executableName: MyImgViewer
   target:
     - target: nsis
       arch:
@@ -46,8 +50,9 @@ win:
       role: Viewer
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
-  shortcutName: My Zip
-  uninstallDisplayName: My Zip
+  shortcutName: MyImgViewer
+  uninstallDisplayName: MyImgViewer
   oneClick: false
   allowToChangeInstallationDirectory: true
   deleteAppDataOnUninstall: true
+compression: maximum

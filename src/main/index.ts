@@ -4,7 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerAllHandlers } from './ipc'
 
 // Set process name for task manager
-app.setName('My Zip')
+app.setName('MyImgViewer')
 
 let mainWindow: BrowserWindow | null = null
 
@@ -22,7 +22,7 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     autoHideMenuBar: true,
-    title: 'My Zip',
+    title: 'MyImgViewer',
     icon: join(__dirname, '../../resources/icon.ico'),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -56,41 +56,38 @@ app.whenReady().then(() => {
   registerAllHandlers()
   createWindow()
 
+  // Handle file passed via command line on first launch
+  const filePath = findImageArg(process.argv)
+  if (filePath && mainWindow) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      mainWindow!.webContents.send('file:open', filePath)
+    })
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
 
-// Handle file association - open file passed as argument
-app.on('second-instance', (_event, commandLine) => {
-  if (mainWindow) {
-    if (mainWindow.isMinimized()) mainWindow.restore()
-    mainWindow.focus()
-
-    const filePath = commandLine.find((arg) => {
-      const ext = arg.toLowerCase()
-      return ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tiff', '.gif', '.bmp'].some((e) =>
-        ext.endsWith(e)
-      )
-    })
-    if (filePath) {
-      mainWindow.webContents.send('file:open', filePath)
-    }
-  }
-})
-
-// Handle file passed via command line on first launch
-app.on('ready', () => {
-  const filePath = process.argv.find((arg) => {
+function findImageArg(args: string[]): string | undefined {
+  return args.find((arg) => {
     const ext = arg.toLowerCase()
     return ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tiff', '.gif', '.bmp'].some((e) =>
       ext.endsWith(e)
     )
   })
-  if (filePath && mainWindow) {
-    mainWindow.webContents.once('did-finish-load', () => {
-      mainWindow!.webContents.send('file:open', filePath)
-    })
+}
+
+// Handle file association - open file passed as argument (second instance)
+app.on('second-instance', (_event, commandLine) => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
+
+    const filePath = findImageArg(commandLine)
+    if (filePath) {
+      mainWindow.webContents.send('file:open', filePath)
+    }
   }
 })
 

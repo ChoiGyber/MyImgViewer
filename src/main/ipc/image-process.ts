@@ -1,6 +1,7 @@
 import { ipcMain, clipboard, nativeImage, shell } from 'electron'
 import sharp from 'sharp'
 import * as fs from 'fs'
+import * as path from 'path'
 
 interface ConvertOptions {
   filePath: string
@@ -100,7 +101,16 @@ export function registerImageProcessHandlers(): void {
 
   // Delete image file (move to trash)
   ipcMain.handle('image:delete', async (_e, filePath: string) => {
-    await shell.trashItem(filePath)
+    const normalizedPath = path.resolve(filePath)
+    if (!fs.existsSync(normalizedPath)) {
+      throw new Error(`파일이 존재하지 않습니다: ${normalizedPath}`)
+    }
+    try {
+      await shell.trashItem(normalizedPath)
+    } catch {
+      // Fallback: permanently delete if trash fails
+      fs.unlinkSync(normalizedPath)
+    }
     return { success: true }
   })
 }

@@ -116,9 +116,28 @@ export function ImageCanvas({
     []
   )
 
+  // Calculate fit-to-window scale so zoom 100% = image fits container
+  const [fitScale, setFitScale] = useState(1)
+
+  useEffect(() => {
+    const updateFitScale = (): void => {
+      if (!containerRef.current || !image) return
+      const containerW = containerRef.current.clientWidth
+      const containerH = containerRef.current.clientHeight
+      if (image.width > 0 && image.height > 0 && containerW > 0 && containerH > 0) {
+        const scaleW = containerW / image.width
+        const scaleH = containerH / image.height
+        setFitScale(Math.min(scaleW, scaleH, 1)) // Don't upscale beyond original
+      }
+    }
+    updateFitScale()
+    window.addEventListener('resize', updateFitScale)
+    return () => window.removeEventListener('resize', updateFitScale)
+  }, [image?.filePath, image?.width, image?.height])
+
   if (!image) return <div />
 
-  const scale = zoom / 100
+  const scale = (zoom / 100) * fitScale
 
   const menuItems = [
     { label: '왼쪽 회전', icon: RotateCcw, action: onRotateLeft },

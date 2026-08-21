@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { Toolbar } from '@/components/layout/Toolbar'
@@ -90,11 +90,6 @@ function App(): React.JSX.Element {
     },
     []
   )
-
-  const getSaveFolder = useCallback((): string => {
-    if (folderPath) return folderPath
-    return viewer.lastDir || ''
-  }, [folderPath, viewer.lastDir])
 
   const handleCaptureWindow = useCallback(
     async (sourceId: string) => {
@@ -261,6 +256,15 @@ function App(): React.JSX.Element {
     }
   }, [viewer.image, viewer.folderImages, viewer.loadImage, viewer.clearImage])
 
+  const handleReload = useCallback(async () => {
+    const result = await viewer.reloadCurrent()
+    if (result.fallbackDir) {
+      // File was deleted - open folder browser at that directory
+      setFolderBrowserDir(result.fallbackDir)
+      setFolderBrowserOpen(true)
+    }
+  }, [viewer.reloadCurrent])
+
   const shortcuts = useMemo(
     () => ({
       openFile: viewer.openFile,
@@ -271,11 +275,23 @@ function App(): React.JSX.Element {
       resetZoom: viewer.resetZoom,
       undo: handleUndo,
       redo: handleRedo,
-      deleteImage: handleDeleteImage
+      deleteImage: handleDeleteImage,
+      reload: handleReload
     }),
-    [viewer.openFile, viewer.nextImage, viewer.prevImage, viewer.zoomIn, viewer.zoomOut, viewer.resetZoom, handleUndo, handleRedo, handleDeleteImage]
+    [viewer.openFile, viewer.nextImage, viewer.prevImage, viewer.zoomIn, viewer.zoomOut, viewer.resetZoom, handleUndo, handleRedo, handleDeleteImage, handleReload]
   )
   useKeyboardShortcuts(shortcuts)
+
+  // Sync folder browser position when image is loaded via file association
+  useEffect(() => {
+    const cleanup = window.api.onFileOpen(() => {
+      // After loadImage runs in useImageViewer, sync folder browser dir
+      // The folderPath will update from viewer.image, but also set folderBrowserDir
+      // so the folder browser navigates to the image's directory
+      setFolderBrowserDir(null) // reset to use folderPath derived from viewer.image
+    })
+    return cleanup
+  }, [])
 
   // FolderBrowser context menu: refresh counter to trigger re-fetch
   const [folderRefreshKey, setFolderRefreshKey] = useState(0)
@@ -454,7 +470,6 @@ function App(): React.JSX.Element {
           onCopy={handleListCopy}
           onDelete={handleListDelete}
           onBatchAction={handleBatchAction}
-          previewOpen={previewOpen}
         />
 
         {viewer.loading && (

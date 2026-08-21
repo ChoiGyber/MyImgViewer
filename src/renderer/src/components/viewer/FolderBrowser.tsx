@@ -41,7 +41,6 @@ interface FolderBrowserProps {
   onCopy: (filePath: string) => void
   onDelete: (filePath: string) => void
   onBatchAction: (mode: BatchMode, files: string[]) => void
-  previewOpen: boolean
 }
 
 function rectsIntersect(
@@ -63,8 +62,7 @@ export function FolderBrowser({
   onResize,
   onCopy,
   onDelete,
-  onBatchAction,
-  previewOpen
+  onBatchAction
 }: FolderBrowserProps): React.JSX.Element | null {
   const [items, setItems] = useState<ThumbnailItem[]>([])
   const [loading, setLoading] = useState(false)

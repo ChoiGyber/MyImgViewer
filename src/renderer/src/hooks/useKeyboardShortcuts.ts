@@ -10,6 +10,7 @@ interface ShortcutActions {
   undo: () => void
   redo: () => void
   deleteImage: () => void
+  reload: () => void
 }
 
 export function useKeyboardShortcuts(actions: ShortcutActions): void {
@@ -27,10 +28,10 @@ export function useKeyboardShortcuts(actions: ShortcutActions): void {
       } else if (e.ctrlKey && e.key === 'o') {
         e.preventDefault()
         actions.openFile()
-      } else if (e.key === 'ArrowRight') {
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown') {
         e.preventDefault()
         actions.nextImage()
-      } else if (e.key === 'ArrowLeft') {
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
         e.preventDefault()
         actions.prevImage()
       } else if (e.key === '+' || e.key === '=') {
@@ -45,6 +46,9 @@ export function useKeyboardShortcuts(actions: ShortcutActions): void {
       } else if (e.key === 'Delete') {
         e.preventDefault()
         actions.deleteImage()
+      } else if (e.key === 'F5') {
+        e.preventDefault()
+        actions.reload()
       }
     }
 
