@@ -9,4 +9,7 @@ Thumbs.db
 .bkit/
 .omc/
 .vscode/
-tauri2/
+tauri2/node_modules/
+tauri2/dist/
+tauri2/src-tauri/target/
+tauri2/src-tauri/gen/
