@@ -17,6 +17,8 @@
     "verify:folder-batch": "node scripts/verify-folder-batch-actions.mjs",
     "verify:print-layout": "node scripts/verify-print-layout.mjs",
     "verify:tauri-print-dialog-ui": "node scripts/verify-tauri-print-dialog-ui.mjs",
+    "verify:tauri-keyboard-shortcuts": "node scripts/verify-tauri-keyboard-shortcuts.mjs",
+    "verify:tauri-app-print-shortcut": "node scripts/verify-tauri-app-print-shortcut-wiring.mjs",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",

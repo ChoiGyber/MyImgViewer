@@ -304,9 +304,12 @@ function App(): React.JSX.Element {
       undo: handleUndo,
       redo: handleRedo,
       deleteImage: handleDeleteImage,
-      reload: handleReload
+      reload: handleReload,
+      printImage: () => {
+        if (viewer.image) setPrintOpen(true)
+      }
     }),
-    [viewer.openFile, viewer.nextImage, viewer.prevImage, viewer.zoomIn, viewer.zoomOut, viewer.resetZoom, handleUndo, handleRedo, handleDeleteImage, handleReload]
+    [viewer.openFile, viewer.nextImage, viewer.prevImage, viewer.zoomIn, viewer.zoomOut, viewer.resetZoom, handleUndo, handleRedo, handleDeleteImage, handleReload, viewer.image]
   )
   useKeyboardShortcuts(shortcuts)
 

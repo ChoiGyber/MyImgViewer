@@ -11,6 +11,7 @@ interface ShortcutActions {
   redo: () => void
   deleteImage: () => void
   reload: () => void
+  printImage: () => void
 }
 
 export function useKeyboardShortcuts(actions: ShortcutActions): void {
@@ -28,6 +29,9 @@ export function useKeyboardShortcuts(actions: ShortcutActions): void {
       } else if (e.ctrlKey && e.key === 'o') {
         e.preventDefault()
         actions.openFile()
+      } else if (e.ctrlKey && e.key.toLowerCase() === 'p') {
+        e.preventDefault()
+        actions.printImage()
       } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === 'PageDown') {
         e.preventDefault()
         actions.nextImage()

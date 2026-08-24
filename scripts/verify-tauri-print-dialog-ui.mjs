@@ -98,12 +98,20 @@ function stripTags(value) {
   return value.replace(/<[^>]+>/g, '').trim()
 }
 
-function assertActionButtonHasHorizontalPadding(label) {
+function getActionButtonAttributes(label) {
   const button = [...html.matchAll(/<button\b([^>]*)>(.*?)<\/button>/gs)].find((match) =>
     stripTags(match[2]).includes(label)
   )
   assert.ok(button, `Print dialog should render a "${label}" button`)
-  const attributes = button[1]
+  return button[1]
+}
+
+function getStyleAttribute(attributes) {
+  return attributes.match(/style="([^"]*)"/)?.[1] ?? ''
+}
+
+function assertActionButtonHasHorizontalPadding(label) {
+  const attributes = getActionButtonAttributes(label)
   assert.match(
     attributes,
     /style="[^"]*padding-left:5px[^"]*padding-right:5px/,
@@ -111,7 +119,25 @@ function assertActionButtonHasHorizontalPadding(label) {
   )
 }
 
+function assertActionButtonIsCompact(label) {
+  const style = getStyleAttribute(getActionButtonAttributes(label))
+  assert.match(style, /height:30px/, `"${label}" button should use compact height`)
+  assert.match(style, /min-height:30px/, `"${label}" button should keep compact minimum height`)
+  assert.match(style, /padding-top:2px/, `"${label}" button should reduce top padding`)
+  assert.match(style, /padding-bottom:2px/, `"${label}" button should reduce bottom padding`)
+}
+
+function assertCancelButtonIsVisibleOnDarkBackground() {
+  const style = getStyleAttribute(getActionButtonAttributes('취소'))
+  assert.match(style, /background-color:#4b5563/, 'Cancel button should use a dark gray background')
+  assert.match(style, /border-color:#6b7280/, 'Cancel button should use a visible gray border')
+  assert.match(style, /color:#fff/, 'Cancel button text should stay readable')
+}
+
 assertActionButtonHasHorizontalPadding('취소')
 assertActionButtonHasHorizontalPadding('프린트')
+assertActionButtonIsCompact('취소')
+assertActionButtonIsCompact('프린트')
+assertCancelButtonIsVisibleOnDarkBackground()
 
 console.log('Tauri print dialog UI verified.')

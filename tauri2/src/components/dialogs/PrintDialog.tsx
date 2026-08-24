@@ -37,6 +37,23 @@ interface PrintDialogProps {
   image: ImageInfo
 }
 
+const compactActionButtonStyle: React.CSSProperties = {
+  height: 30,
+  minHeight: 30,
+  paddingLeft: 5,
+  paddingRight: 5,
+  paddingTop: 2,
+  paddingBottom: 2,
+  lineHeight: 1.1
+}
+
+const cancelActionButtonStyle: React.CSSProperties = {
+  ...compactActionButtonStyle,
+  backgroundColor: '#4b5563',
+  borderColor: '#6b7280',
+  color: '#fff'
+}
+
 export function PrintDialog({ open, onOpenChange, image }: PrintDialogProps): React.JSX.Element {
   const [paperSize, setPaperSize] = useState<PrintPaperSize>(DEFAULT_PRINT_OPTIONS.paperSize)
   const [rotation, setRotation] = useState<PrintRotation>(DEFAULT_PRINT_OPTIONS.rotation)
@@ -205,15 +222,11 @@ export function PrintDialog({ open, onOpenChange, image }: PrintDialogProps): Re
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={printing}
-            style={{ paddingLeft: 5, paddingRight: 5 }}
+            style={cancelActionButtonStyle}
           >
             취소
           </Button>
-          <Button
-            onClick={handlePrint}
-            disabled={printing}
-            style={{ paddingLeft: 5, paddingRight: 5 }}
-          >
+          <Button onClick={handlePrint} disabled={printing} style={compactActionButtonStyle}>
             <Printer className="h-4 w-4" />
             {printing ? '준비 중...' : '프린트'}
           </Button>
