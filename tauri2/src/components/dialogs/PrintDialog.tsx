@@ -201,10 +201,19 @@ export function PrintDialog({ open, onOpenChange, image }: PrintDialogProps): Re
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={printing}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={printing}
+            style={{ paddingLeft: 5, paddingRight: 5 }}
+          >
             취소
           </Button>
-          <Button onClick={handlePrint} disabled={printing}>
+          <Button
+            onClick={handlePrint}
+            disabled={printing}
+            style={{ paddingLeft: 5, paddingRight: 5 }}
+          >
             <Printer className="h-4 w-4" />
             {printing ? '준비 중...' : '프린트'}
           </Button>

@@ -16,6 +16,7 @@
     "verify:heic-conversion": "node scripts/verify-heic-conversion-pipeline.mjs",
     "verify:folder-batch": "node scripts/verify-folder-batch-actions.mjs",
     "verify:print-layout": "node scripts/verify-print-layout.mjs",
+    "verify:tauri-print-dialog-ui": "node scripts/verify-tauri-print-dialog-ui.mjs",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
