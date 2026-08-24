@@ -15,6 +15,7 @@
     "verify:update-logic": "node scripts/verify-update-logic.mjs",
     "verify:heic-conversion": "node scripts/verify-heic-conversion-pipeline.mjs",
     "verify:folder-batch": "node scripts/verify-folder-batch-actions.mjs",
+    "verify:print-layout": "node scripts/verify-print-layout.mjs",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",

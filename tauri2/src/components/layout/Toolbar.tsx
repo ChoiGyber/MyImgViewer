@@ -16,7 +16,8 @@ import {
   AppWindow,
   Monitor,
   Square,
-  Download
+  Download,
+  Printer
 } from 'lucide-react'
 
 interface ToolbarProps {
@@ -31,6 +32,7 @@ interface ToolbarProps {
   onCaptureFullScreen: () => void
   onCaptureWindow: () => void
   onCaptureRect: () => void
+  onPrint: () => void
   onToggleTheme: () => void
   onToggleSidebar: () => void
   previewOpen: boolean
@@ -51,6 +53,7 @@ export function Toolbar({
   onCaptureFullScreen,
   onCaptureWindow,
   onCaptureRect,
+  onPrint,
   onToggleTheme,
   onToggleSidebar,
   previewOpen,
@@ -127,6 +130,18 @@ export function Toolbar({
           </Button>
         </TooltipTrigger>
         <TooltipContent>여러 이미지 일괄 크기 줄이기</TooltipContent>
+      </Tooltip>
+
+      <Separator orientation="vertical" className="h-6 mx-3" />
+
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="sm" onClick={onPrint} disabled={!hasImage}>
+            <Printer className="h-4 w-4" />
+            프린트
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>현재 이미지 프린트</TooltipContent>
       </Tooltip>
 
       <Separator orientation="vertical" className="h-6 mx-3" />

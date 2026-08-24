@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react'
-import { RotateCw, RotateCcw, Minimize2, Copy, Trash2, RefreshCw } from 'lucide-react'
+import { RotateCw, RotateCcw, Minimize2, Copy, Trash2, RefreshCw, Printer } from 'lucide-react'
 import type { ImageInfo } from '@/lib/types'
 
 interface ContextMenuState {
@@ -18,6 +18,7 @@ interface ImageCanvasProps {
   onCopy?: () => void
   onDelete?: () => void
   onConvert?: () => void
+  onPrint?: () => void
 }
 
 export function ImageCanvas({
@@ -30,7 +31,8 @@ export function ImageCanvas({
   onResize,
   onCopy,
   onDelete,
-  onConvert
+  onConvert,
+  onPrint
 }: ImageCanvasProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const [isPanning, setIsPanning] = useState(false)
@@ -125,6 +127,7 @@ export function ImageCanvas({
     { label: '오른쪽 회전', icon: RotateCw, action: onRotateRight },
     { label: '크기 줄이기', icon: Minimize2, action: onResize },
     { label: '포맷 변환', icon: RefreshCw, action: onConvert },
+    { label: '프린트', icon: Printer, action: onPrint },
     { label: '복사하기', icon: Copy, action: onCopy },
     { label: '삭제', icon: Trash2, action: onDelete, danger: true }
   ]

@@ -13,6 +13,7 @@ import { ResizeDialog } from '@/components/dialogs/ResizeDialog'
 import { BatchResizeDialog } from '@/components/dialogs/BatchResizeDialog'
 import { BatchProcessDialog } from '@/components/dialogs/BatchProcessDialog'
 import { RotateFlipPanel } from '@/components/dialogs/RotateFlipPanel'
+import { PrintDialog } from '@/components/dialogs/PrintDialog'
 import { UpdateDialog } from '@/components/dialogs/UpdateDialog'
 import { WindowPicker } from '@/components/capture/WindowPicker'
 import { ScreenPicker } from '@/components/capture/ScreenPicker'
@@ -30,6 +31,7 @@ function App(): React.JSX.Element {
   const [convertOpen, setConvertOpen] = useState(false)
   const [resizeOpen, setResizeOpen] = useState(false)
   const [rotateOpen, setRotateOpen] = useState(false)
+  const [printOpen, setPrintOpen] = useState(false)
   const [batchOpen, setBatchOpen] = useState(false)
   const [folderBrowserOpen, setFolderBrowserOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -417,6 +419,7 @@ function App(): React.JSX.Element {
             onCaptureFullScreen={handleCaptureFullScreen}
             onCaptureWindow={() => setWindowPickerOpen(true)}
             onCaptureRect={handleStartRectCapture}
+            onPrint={() => setPrintOpen(true)}
             onToggleTheme={toggleTheme}
             onToggleSidebar={toggleSidebar}
             previewOpen={previewOpen}
@@ -467,6 +470,7 @@ function App(): React.JSX.Element {
             onCopy={handleCopyImage}
             onDelete={handleDeleteImage}
             onConvert={() => setConvertOpen(true)}
+            onPrint={() => setPrintOpen(true)}
           />
         )}
         <DropZone
@@ -555,6 +559,11 @@ function App(): React.JSX.Element {
             onOpenChange={setRotateOpen}
             image={viewer.image}
             onReload={viewer.reloadCurrent}
+          />
+          <PrintDialog
+            open={printOpen}
+            onOpenChange={setPrintOpen}
+            image={viewer.image}
           />
         </>
       )}
