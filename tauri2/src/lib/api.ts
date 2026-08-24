@@ -1,19 +1,24 @@
 import { invoke } from '@tauri-apps/api/core'
-import { open, save } from '@tauri-apps/plugin-dialog'
+import { getVersion } from '@tauri-apps/api/app'
+import { open as openDialog, save } from '@tauri-apps/plugin-dialog'
+import { open as openExternal } from '@tauri-apps/plugin-shell'
 import { getCurrentWindow } from '@tauri-apps/api/window'
+import { IMAGE_FILTER } from './constants'
+import { checkGitHubUpdate } from './update'
+import type { UpdateInfo } from './types'
 
 // Dialog wrappers
 export async function openFileDialog(): Promise<string | null> {
-  const result = await open({
-    filters: [{ name: '이미지 파일', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'gif', 'bmp', 'svg'] }],
+  const result = await openDialog({
+    filters: [IMAGE_FILTER],
     multiple: false
   })
   return result as string | null
 }
 
 export async function openFilesDialog(): Promise<string[]> {
-  const result = await open({
-    filters: [{ name: '이미지 파일', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'gif', 'bmp', 'svg'] }],
+  const result = await openDialog({
+    filters: [IMAGE_FILTER],
     multiple: true
   })
   if (!result) return []
@@ -21,7 +26,7 @@ export async function openFilesDialog(): Promise<string[]> {
 }
 
 export async function openFolderDialog(): Promise<string | null> {
-  const result = await open({ directory: true })
+  const result = await openDialog({ directory: true })
   return result as string | null
 }
 
@@ -179,4 +184,12 @@ export async function exitFullscreen() {
 // File passed on first launch (file association / command line)
 export async function getStartupFile() {
   return invoke<string | null>('get_startup_file')
+}
+
+export async function checkForUpdates(): Promise<UpdateInfo | null> {
+  return checkGitHubUpdate(await getVersion())
+}
+
+export async function openUpdateRelease(releaseUrl: string): Promise<void> {
+  await openExternal(releaseUrl)
 }

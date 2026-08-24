@@ -1,7 +1,9 @@
 import { ipcMain, clipboard, nativeImage, shell } from 'electron'
+import heicConvert from 'heic-convert'
 import sharp from 'sharp'
 import * as fs from 'fs'
 import * as path from 'path'
+import { convertImageBuffer, prepareSharpInputBuffer } from '../image-conversion'
 
 interface ConvertOptions {
   filePath: string
@@ -26,31 +28,21 @@ interface TransformOptions {
   outputPath: string
 }
 
+async function decodeHeic(buffer: Buffer, format: 'PNG'): Promise<Buffer> {
+  return Buffer.from(await heicConvert({ buffer, format }))
+}
+
 export function registerImageProcessHandlers(): void {
   ipcMain.handle('image:convert', async (_e, options: ConvertOptions) => {
     const { filePath, outputFormat, quality, outputPath } = options
     const buffer = fs.readFileSync(filePath)
-    let pipeline = sharp(buffer)
-
-    switch (outputFormat) {
-      case 'jpeg':
-        pipeline = pipeline.jpeg({ quality })
-        break
-      case 'png':
-        pipeline = pipeline.png()
-        break
-      case 'webp':
-        pipeline = pipeline.webp({ quality })
-        break
-      case 'avif':
-        pipeline = pipeline.avif({ quality })
-        break
-      case 'tiff':
-        pipeline = pipeline.tiff()
-        break
-    }
-
-    const output = await pipeline.toBuffer()
+    const output = await convertImageBuffer({
+      filePath,
+      input: buffer,
+      outputFormat,
+      quality,
+      decodeHeic
+    })
     fs.writeFileSync(outputPath, output)
     return { success: true, outputPath }
   })
@@ -58,8 +50,9 @@ export function registerImageProcessHandlers(): void {
   ipcMain.handle('image:resize', async (_e, options: ResizeOptions) => {
     const { filePath, width, height, fit, outputPath } = options
     const buffer = fs.readFileSync(filePath)
+    const input = await prepareSharpInputBuffer(filePath, buffer, decodeHeic)
 
-    const output = await sharp(buffer)
+    const output = await sharp(input)
       .resize({
         width: width || undefined,
         height: height || undefined,
@@ -74,7 +67,8 @@ export function registerImageProcessHandlers(): void {
   ipcMain.handle('image:transform', async (_e, options: TransformOptions) => {
     const { filePath, rotate, flipH, flipV, outputPath } = options
     const buffer = fs.readFileSync(filePath)
-    let pipeline = sharp(buffer)
+    const input = await prepareSharpInputBuffer(filePath, buffer, decodeHeic)
+    let pipeline = sharp(input)
 
     if (rotate && rotate !== 0) {
       pipeline = pipeline.rotate(rotate)
@@ -94,7 +88,9 @@ export function registerImageProcessHandlers(): void {
   // Copy image to clipboard
   ipcMain.handle('image:copyToClipboard', async (_e, filePath: string) => {
     const buffer = fs.readFileSync(filePath)
-    const img = nativeImage.createFromBuffer(buffer)
+    const input = await prepareSharpInputBuffer(filePath, buffer, decodeHeic)
+    const png = await sharp(input).png().toBuffer()
+    const img = nativeImage.createFromBuffer(png)
     clipboard.writeImage(img)
     return { success: true }
   })

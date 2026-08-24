@@ -11,6 +11,10 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "verify:file-associations": "node scripts/verify-file-associations.mjs",
+    "verify:update-logic": "node scripts/verify-update-logic.mjs",
+    "verify:heic-conversion": "node scripts/verify-heic-conversion-pipeline.mjs",
+    "verify:folder-batch": "node scripts/verify-folder-batch-actions.mjs",
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
@@ -19,6 +23,7 @@
     "build:win": "npm run build && electron-builder --win"
   },
   "dependencies": {
+    "heic-convert": "^2.1.0",
     "sharp": "^0.33.2"
   },
   "devDependencies": {
@@ -46,6 +51,7 @@
     "electron-builder": "^25.1.8",
     "electron-vite": "^5.0.0",
     "eslint": "^9.14.0",
+    "js-yaml": "^5.3.0",
     "lucide-react": "^0.468.0",
     "prettier": "^3.4.0",
     "react": "^18.3.1",

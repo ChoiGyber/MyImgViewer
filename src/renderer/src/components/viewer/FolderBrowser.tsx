@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   X,
   Loader2,
@@ -12,6 +12,7 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { getFolderBatchLabel, getFolderImagePaths } from '@/lib/folder-batch'
 
 interface ThumbnailItem {
   filePath: string
@@ -75,6 +76,7 @@ export function FolderBrowser({
   const [dragEnd, setDragEnd] = useState({ x: 0, y: 0 })
   const [dragBaseSelection, setDragBaseSelection] = useState<Set<string>>(new Set())
   const gridRef = useRef<HTMLDivElement>(null)
+  const folderImagePaths = useMemo(() => getFolderImagePaths(items), [items])
 
   useEffect(() => {
     if (!open || !folderPath) return
@@ -191,6 +193,11 @@ export function FolderBrowser({
     [selectedFiles, onBatchAction]
   )
 
+  const handleFolderConvert = useCallback(() => {
+    if (folderImagePaths.length === 0) return
+    onBatchAction('convert', folderImagePaths)
+  }, [folderImagePaths, onBatchAction])
+
   // --- Drag selection handlers ---
   const handleGridMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -279,7 +286,7 @@ export function FolderBrowser({
 
   if (!open) return null
 
-  const imageCount = items.filter((i) => i.type === 'image').length
+  const imageCount = folderImagePaths.length
   const pdfCount = items.filter((i) => i.type === 'pdf').length
   const folderCount = items.filter((i) => i.type === 'folder').length
 
@@ -673,14 +680,31 @@ export function FolderBrowser({
         style={{
           padding: '6px 16px',
           borderTop: '1px solid var(--color-border)',
-          flexShrink: 0
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8
         }}
       >
-        {footerParts.length > 0 ? footerParts.join(', ') : '비어 있음'}
-        {selectedFiles.size > 0 && (
-          <span style={{ marginLeft: 8, color: '#3b82f6' }}>
-            | 드래그 또는 Ctrl+클릭으로 선택 · Ctrl+A 전체 선택
-          </span>
+        <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {footerParts.length > 0 ? footerParts.join(', ') : '비어 있음'}
+          {selectedFiles.size > 0 && (
+            <span style={{ marginLeft: 8, color: '#3b82f6' }}>
+              | 드래그 또는 Ctrl+클릭으로 선택 · Ctrl+A 전체 선택
+            </span>
+          )}
+        </span>
+        {imageCount > 0 && selectedFiles.size === 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleFolderConvert}
+            style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            {getFolderBatchLabel('convert', imageCount)}
+          </Button>
         )}
       </div>
 

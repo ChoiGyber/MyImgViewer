@@ -4,6 +4,7 @@ import { registerBatchHandlers } from './image-batch'
 import { registerFolderNavHandlers } from './folder-nav'
 import { registerScreenCaptureHandlers } from './screen-capture'
 import { registerImageHistoryHandlers } from './image-history'
+import { registerAppUpdateHandlers } from './app-update'
 
 export function registerAllHandlers(): void {
   registerImageIOHandlers()
@@ -12,4 +13,5 @@ export function registerAllHandlers(): void {
   registerFolderNavHandlers()
   registerScreenCaptureHandlers()
   registerImageHistoryHandlers()
+  registerAppUpdateHandlers()
 }

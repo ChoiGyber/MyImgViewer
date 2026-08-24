@@ -1,18 +1,21 @@
 import { ipcMain, dialog } from 'electron'
 import sharp from 'sharp'
+import heicConvert from 'heic-convert'
 import * as path from 'path'
 import * as fs from 'fs'
-
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tiff', '.tif', '.gif', '.bmp', '.svg', '.heic', '.heif']
-
-function isImageFile(filePath: string): boolean {
-  return IMAGE_EXTENSIONS.includes(path.extname(filePath).toLowerCase())
-}
+import {
+  IMAGE_FILTER,
+  MIME_BY_EXTENSION,
+  imageExtension,
+  isHeifExtension,
+  isImageFile,
+  shouldTranscodeForDisplay
+} from '../image-formats'
 
 export function registerImageIOHandlers(): void {
   ipcMain.handle('dialog:openFile', async () => {
     const result = await dialog.showOpenDialog({
-      filters: [{ name: '이미지 파일', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'gif', 'bmp', 'svg', 'heic', 'heif'] }],
+      filters: [IMAGE_FILTER],
       properties: ['openFile']
     })
     if (result.canceled || result.filePaths.length === 0) return null
@@ -21,7 +24,7 @@ export function registerImageIOHandlers(): void {
 
   ipcMain.handle('dialog:openFiles', async () => {
     const result = await dialog.showOpenDialog({
-      filters: [{ name: '이미지 파일', extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'gif', 'bmp', 'svg', 'heic', 'heif'] }],
+      filters: [IMAGE_FILTER],
       properties: ['openFile', 'multiSelections']
     })
     if (result.canceled) return []
@@ -57,23 +60,7 @@ export function registerImageIOHandlers(): void {
 
       const buffer = fs.readFileSync(normalizedPath)
       const stats = fs.statSync(normalizedPath)
-      const ext = path.extname(normalizedPath).slice(1).toLowerCase()
-
-      // Determine MIME type from extension
-      const mimeMap: Record<string, string> = {
-        jpeg: 'image/jpeg',
-        jpg: 'image/jpeg',
-        png: 'image/png',
-        webp: 'image/webp',
-        avif: 'image/avif',
-        tiff: 'image/tiff',
-        tif: 'image/tiff',
-        gif: 'image/gif',
-        svg: 'image/svg+xml',
-        bmp: 'image/bmp',
-        heic: 'image/heic',
-        heif: 'image/heif'
-      }
+      const ext = imageExtension(normalizedPath)
 
       let width = 0
       let height = 0
@@ -88,14 +75,18 @@ export function registerImageIOHandlers(): void {
         console.log('[image:load] Sharp metadata failed, using extension:', (sharpErr as Error).message)
       }
 
-      // HEIC/HEIF: convert to JPEG for browser display
-      const isHeic = ext === 'heic' || ext === 'heif'
       let dataUrl: string
-      if (isHeic) {
-        const jpegBuf = await sharp(buffer).jpeg({ quality: 92 }).toBuffer()
-        dataUrl = `data:image/jpeg;base64,${jpegBuf.toString('base64')}`
+      if (isHeifExtension(ext)) {
+        const pngBuf = Buffer.from(await heicConvert({ buffer, format: 'PNG' }))
+        const pngMeta = await sharp(pngBuf).metadata()
+        width = pngMeta.width || width
+        height = pngMeta.height || height
+        dataUrl = `data:image/png;base64,${pngBuf.toString('base64')}`
+      } else if (shouldTranscodeForDisplay(ext)) {
+        const pngBuf = await sharp(buffer).png().toBuffer()
+        dataUrl = `data:image/png;base64,${pngBuf.toString('base64')}`
       } else {
-        const mime = mimeMap[ext] || mimeMap[format] || 'image/png'
+        const mime = MIME_BY_EXTENSION[ext] || MIME_BY_EXTENSION[format] || 'image/png'
         dataUrl = `data:${mime};base64,${buffer.toString('base64')}`
       }
 

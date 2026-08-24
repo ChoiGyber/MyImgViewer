@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { UpdateInfo } from '../main/update-info'
 
 export type Api = typeof api
 
@@ -26,6 +27,11 @@ const api = {
 
   // Shell
   openPath: (filePath: string): Promise<void> => ipcRenderer.invoke('shell:openPath', filePath),
+
+  // App updates
+  checkForUpdates: (): Promise<UpdateInfo | null> => ipcRenderer.invoke('app:checkForUpdates'),
+  openUpdateRelease: (releaseUrl: string): Promise<void> =>
+    ipcRenderer.invoke('app:openUpdateRelease', releaseUrl),
 
   // History (undo/redo)
   historyBeforeEdit: (filePath: string): Promise<{ success: boolean }> =>

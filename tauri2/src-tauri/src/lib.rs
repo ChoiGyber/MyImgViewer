@@ -1,20 +1,17 @@
 mod commands;
+mod image_formats;
 
 use commands::image_history::HistoryState;
 use std::sync::Mutex;
 
-const IMAGE_EXTENSIONS: &[&str] = &[
-    "jpg", "jpeg", "png", "webp", "avif", "tiff", "tif", "gif", "bmp", "svg",
-];
-
 fn find_image_arg(args: &[String]) -> Option<String> {
-    args.iter().skip(1).find(|a| {
-        let lower = a.to_lowercase();
-        IMAGE_EXTENSIONS
-            .iter()
-            .any(|e| lower.ends_with(&format!(".{}", e)))
-            && std::path::Path::new(a).exists()
-    }).cloned()
+    args.iter()
+        .skip(1)
+        .find(|a| {
+            crate::image_formats::is_image_file(std::path::Path::new(a))
+                && std::path::Path::new(a).exists()
+        })
+        .cloned()
 }
 
 /// File passed on first launch (file association / command line).
@@ -91,4 +88,28 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn startup_file_detection_accepts_extended_and_iphone_extensions() {
+        let temp = std::env::temp_dir().join(format!(
+            "myimgviewer-startup-test-{}.HEIC",
+            std::process::id()
+        ));
+        fs::write(&temp, b"not decoded in this test").unwrap();
+
+        let args = vec![
+            "myimgviewer".to_string(),
+            temp.to_string_lossy().to_string(),
+        ];
+        let found = find_image_arg(&args);
+
+        fs::remove_file(&temp).unwrap();
+        assert_eq!(found, Some(temp.to_string_lossy().to_string()));
+    }
 }

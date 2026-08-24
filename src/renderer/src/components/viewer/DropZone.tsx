@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { ImageIcon, FolderOpen } from 'lucide-react'
+import { IMAGE_FILE_EXTENSIONS } from '@renderer/lib/constants'
 
 interface DropZoneProps {
   hasImage: boolean
@@ -48,8 +49,7 @@ export function DropZone({ hasImage, hasLastDir, onDrop, onOpen, onShowFolder }:
         const filePath = (file as File & { path: string }).path
         if (!filePath) return
         const ext = file.name.toLowerCase().split('.').pop()
-        const imageExts = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'gif', 'bmp', 'svg']
-        if (ext && imageExts.includes(ext)) {
+        if (ext && IMAGE_FILE_EXTENSIONS.includes(ext as (typeof IMAGE_FILE_EXTENSIONS)[number])) {
           onDrop(filePath)
         }
       }

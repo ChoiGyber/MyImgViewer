@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { MainLayout } from '@/components/layout/MainLayout'
 import { Toolbar } from '@/components/layout/Toolbar'
@@ -13,6 +13,7 @@ import { ResizeDialog } from '@/components/dialogs/ResizeDialog'
 import { BatchResizeDialog } from '@/components/dialogs/BatchResizeDialog'
 import { BatchProcessDialog } from '@/components/dialogs/BatchProcessDialog'
 import { RotateFlipPanel } from '@/components/dialogs/RotateFlipPanel'
+import { UpdateDialog } from '@/components/dialogs/UpdateDialog'
 import { WindowPicker } from '@/components/capture/WindowPicker'
 import { ScreenPicker } from '@/components/capture/ScreenPicker'
 import { RectangleCapture } from '@/components/capture/RectangleCapture'
@@ -37,8 +38,11 @@ import {
   hideMainWindow,
   showMainWindow,
   enterFullscreen,
-  exitFullscreen
+  exitFullscreen,
+  checkForUpdates,
+  openUpdateRelease
 } from '@/lib/api'
+import type { UpdateInfo } from '@/lib/types'
 
 function App(): React.JSX.Element {
   const viewer = useImageViewer()
@@ -62,6 +66,8 @@ function App(): React.JSX.Element {
     screenHeight: number
     scaleFactor: number
   } | null>(null)
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
+  const [updateOpen, setUpdateOpen] = useState(false)
 
   const folderPath = useMemo(() => {
     if (viewer.image) {
@@ -302,6 +308,27 @@ function App(): React.JSX.Element {
   )
   useKeyboardShortcuts(shortcuts)
 
+  useEffect(() => {
+    let cancelled = false
+    checkForUpdates()
+      .then((info) => {
+        if (cancelled || !info) return
+        setUpdateInfo(info)
+        setUpdateOpen(true)
+      })
+      .catch((err) => {
+        console.warn('[update] check failed', err)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const handleOpenUpdateRelease = useCallback(async () => {
+    if (!updateInfo) return
+    await openUpdateRelease(updateInfo.releaseUrl)
+  }, [updateInfo])
+
   const [folderRefreshKey, setFolderRefreshKey] = useState(0)
   const refreshFolderBrowser = useCallback(() => setFolderRefreshKey((k) => k + 1), [])
 
@@ -403,6 +430,8 @@ function App(): React.JSX.Element {
             onToggleSidebar={toggleSidebar}
             previewOpen={previewOpen}
             onTogglePreview={() => setPreviewOpen((v) => !v)}
+            updateAvailable={!!updateInfo}
+            onShowUpdate={() => setUpdateOpen(true)}
           />
         }
         directoryBar={
@@ -544,6 +573,12 @@ function App(): React.JSX.Element {
         filePaths={batchProcessFiles}
         sourceDir={folderBrowserDir || folderPath}
         onComplete={refreshFolderBrowser}
+      />
+      <UpdateDialog
+        open={updateOpen}
+        onOpenChange={setUpdateOpen}
+        update={updateInfo}
+        onOpenRelease={handleOpenUpdateRelease}
       />
 
       <WindowPicker

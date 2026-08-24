@@ -1,7 +1,13 @@
 import { ipcMain, BrowserWindow } from 'electron'
+import heicConvert from 'heic-convert'
 import sharp from 'sharp'
 import * as path from 'path'
 import * as fs from 'fs'
+import {
+  convertImageBuffer,
+  outputExtensionForFormat,
+  prepareSharpInputBuffer
+} from '../image-conversion'
 
 interface BatchResizeOptions {
   filePaths: string[]
@@ -43,6 +49,10 @@ function sendProgress(
   win?.webContents.send('batch:progress', { current, total, currentFile })
 }
 
+async function decodeHeic(buffer: Buffer, format: 'PNG'): Promise<Buffer> {
+  return Buffer.from(await heicConvert({ buffer, format }))
+}
+
 export function registerBatchHandlers(): void {
   ipcMain.handle('batch:resize', async (event, options: BatchResizeOptions) => {
     const { filePaths, width, height, percent, fit, outputDir } = options
@@ -58,10 +68,11 @@ export function registerBatchHandlers(): void {
 
       try {
         const buffer = fs.readFileSync(filePath)
+        const input = await prepareSharpInputBuffer(filePath, buffer, decodeHeic)
         let resizeOpts: sharp.ResizeOptions
 
         if (percent && percent > 0) {
-          const meta = await sharp(buffer).metadata()
+          const meta = await sharp(input).metadata()
           const origW = meta.width || 100
           const origH = meta.height || 100
           resizeOpts = {
@@ -77,7 +88,7 @@ export function registerBatchHandlers(): void {
           }
         }
 
-        const output = await sharp(buffer).resize(resizeOpts).toBuffer()
+        const output = await sharp(input).resize(resizeOpts).toBuffer()
         const outputPath = path.join(outputDir, fileName)
         fs.writeFileSync(outputPath, output)
         results.push({ file: fileName, success: true })
@@ -103,7 +114,8 @@ export function registerBatchHandlers(): void {
 
       try {
         const buffer = fs.readFileSync(filePath)
-        let pipeline = sharp(buffer)
+        const input = await prepareSharpInputBuffer(filePath, buffer, decodeHeic)
+        let pipeline = sharp(input)
         if (rotate && rotate !== 0) pipeline = pipeline.rotate(rotate)
         if (flipH) pipeline = pipeline.flop()
         if (flipV) pipeline = pipeline.flip()
@@ -130,33 +142,19 @@ export function registerBatchHandlers(): void {
     for (let i = 0; i < filePaths.length; i++) {
       const filePath = filePaths[i]
       const baseName = path.basename(filePath, path.extname(filePath))
-      const ext = outputFormat === 'jpeg' ? 'jpg' : outputFormat
+      const ext = outputExtensionForFormat(outputFormat)
       const outputFileName = `${baseName}.${ext}`
       sendProgress(event, i + 1, total, outputFileName)
 
       try {
         const buffer = fs.readFileSync(filePath)
-        let pipeline = sharp(buffer)
-
-        switch (outputFormat) {
-          case 'jpeg':
-            pipeline = pipeline.jpeg({ quality })
-            break
-          case 'png':
-            pipeline = pipeline.png()
-            break
-          case 'webp':
-            pipeline = pipeline.webp({ quality })
-            break
-          case 'avif':
-            pipeline = pipeline.avif({ quality })
-            break
-          case 'tiff':
-            pipeline = pipeline.tiff()
-            break
-        }
-
-        const output = await pipeline.toBuffer()
+        const output = await convertImageBuffer({
+          filePath,
+          input: buffer,
+          outputFormat,
+          quality,
+          decodeHeic
+        })
         const outputPath = path.join(outputDir, outputFileName)
         fs.writeFileSync(outputPath, output)
         results.push({ file: outputFileName, success: true })

@@ -15,7 +15,8 @@ import {
   PanelRightClose,
   AppWindow,
   Monitor,
-  Square
+  Square,
+  Download
 } from 'lucide-react'
 
 interface ToolbarProps {
@@ -34,6 +35,8 @@ interface ToolbarProps {
   onToggleSidebar: () => void
   previewOpen: boolean
   onTogglePreview: () => void
+  updateAvailable?: boolean
+  onShowUpdate?: () => void
 }
 
 export function Toolbar({
@@ -51,7 +54,9 @@ export function Toolbar({
   onToggleTheme,
   onToggleSidebar,
   previewOpen,
-  onTogglePreview
+  onTogglePreview,
+  updateAvailable,
+  onShowUpdate
 }: ToolbarProps): React.JSX.Element {
   return (
     <div className="flex items-center gap-1 py-1.5 pr-4 border-b bg-background" style={{ paddingLeft: 10 }}>
@@ -157,6 +162,22 @@ export function Toolbar({
       </Tooltip>
 
       <div className="flex-1" />
+
+      {updateAvailable && onShowUpdate && (
+        <>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="sm" onClick={onShowUpdate}>
+                <Download className="h-4 w-4" />
+                업데이트
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>새 버전 변경 내역 보기</TooltipContent>
+          </Tooltip>
+
+          <Separator orientation="vertical" className="h-6 mx-2" />
+        </>
+      )}
 
       <Tooltip>
         <TooltipTrigger asChild>

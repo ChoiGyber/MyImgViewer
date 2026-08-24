@@ -13,12 +13,14 @@ import { ResizeDialog } from '@/components/dialogs/ResizeDialog'
 import { BatchResizeDialog } from '@/components/dialogs/BatchResizeDialog'
 import { BatchProcessDialog } from '@/components/dialogs/BatchProcessDialog'
 import { RotateFlipPanel } from '@/components/dialogs/RotateFlipPanel'
+import { UpdateDialog } from '@/components/dialogs/UpdateDialog'
 import { WindowPicker } from '@/components/capture/WindowPicker'
 import { ScreenPicker } from '@/components/capture/ScreenPicker'
 import { RectangleCapture } from '@/components/capture/RectangleCapture'
 import { useImageViewer } from '@/hooks/useImageViewer'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useTheme } from '@/hooks/useTheme'
+import type { UpdateInfo } from '@/lib/types'
 
 function App(): React.JSX.Element {
   const viewer = useImageViewer()
@@ -42,6 +44,8 @@ function App(): React.JSX.Element {
     screenHeight: number
     scaleFactor: number
   } | null>(null)
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
+  const [updateOpen, setUpdateOpen] = useState(false)
 
   // Use current image dir, or fall back to lastDir from localStorage
   const folderPath = useMemo(() => {
@@ -282,6 +286,28 @@ function App(): React.JSX.Element {
   )
   useKeyboardShortcuts(shortcuts)
 
+  useEffect(() => {
+    let cancelled = false
+    window.api
+      .checkForUpdates()
+      .then((info) => {
+        if (cancelled || !info) return
+        setUpdateInfo(info)
+        setUpdateOpen(true)
+      })
+      .catch((err) => {
+        console.warn('[update] check failed', err)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const handleOpenUpdateRelease = useCallback(async () => {
+    if (!updateInfo) return
+    await window.api.openUpdateRelease(updateInfo.releaseUrl)
+  }, [updateInfo])
+
   // Sync folder browser position when image is loaded via file association
   useEffect(() => {
     const cleanup = window.api.onFileOpen(() => {
@@ -395,6 +421,8 @@ function App(): React.JSX.Element {
             onToggleSidebar={toggleSidebar}
             previewOpen={previewOpen}
             onTogglePreview={() => setPreviewOpen((v) => !v)}
+            updateAvailable={!!updateInfo}
+            onShowUpdate={() => setUpdateOpen(true)}
           />
         }
         directoryBar={
@@ -538,6 +566,12 @@ function App(): React.JSX.Element {
         filePaths={batchProcessFiles}
         sourceDir={folderBrowserDir || folderPath}
         onComplete={refreshFolderBrowser}
+      />
+      <UpdateDialog
+        open={updateOpen}
+        onOpenChange={setUpdateOpen}
+        update={updateInfo}
+        onOpenRelease={handleOpenUpdateRelease}
       />
 
       {/* Capture dialogs */}

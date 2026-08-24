@@ -22,11 +22,16 @@ export const FIT_OPTIONS = [
   { value: 'outside', label: '바깥쪽 (Outside)' }
 ] as const
 
-export const IMAGE_EXTENSIONS = [
-  '.jpg', '.jpeg', '.png', '.webp', '.avif', '.tiff', '.tif', '.gif', '.bmp', '.svg', '.heic', '.heif'
-]
+export const IMAGE_FILE_EXTENSIONS = [
+  'jpg', 'jpeg', 'jpe', 'jfif', 'pjpeg', 'pjp', 'png', 'apng', 'webp', 'avif',
+  'tiff', 'tif', 'gif', 'bmp', 'dib', 'svg', 'ico', 'tga', 'targa', 'pnm', 'pbm',
+  'pgm', 'ppm', 'pam', 'qoi', 'dds', 'hdr', 'exr', 'ff', 'farbfeld', 'heic',
+  'heif', 'hif', 'heics', 'heifs'
+] as const
+
+export const IMAGE_EXTENSIONS = IMAGE_FILE_EXTENSIONS.map((ext) => `.${ext}`)
 
 export const IMAGE_FILTER = {
   name: '이미지 파일',
-  extensions: ['jpg', 'jpeg', 'png', 'webp', 'avif', 'tiff', 'tif', 'gif', 'bmp', 'svg', 'heic', 'heif']
+  extensions: [...IMAGE_FILE_EXTENSIONS]
 }

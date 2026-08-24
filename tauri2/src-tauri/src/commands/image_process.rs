@@ -1,9 +1,10 @@
+use crate::image_formats;
 use image::imageops::FilterType;
 use image::{DynamicImage, GenericImageView, ImageFormat};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Cursor;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -43,19 +44,29 @@ pub struct ProcessResult {
 
 fn str_to_format(fmt: &str) -> Option<ImageFormat> {
     match fmt {
-        "jpeg" | "jpg" => Some(ImageFormat::Jpeg),
-        "png" => Some(ImageFormat::Png),
+        "jpeg" | "jpg" | "jpe" | "jfif" | "pjpeg" | "pjp" => Some(ImageFormat::Jpeg),
+        "png" | "apng" => Some(ImageFormat::Png),
         "webp" => Some(ImageFormat::WebP),
         "avif" => Some(ImageFormat::Avif),
-        "tiff" => Some(ImageFormat::Tiff),
+        "tiff" | "tif" => Some(ImageFormat::Tiff),
         "gif" => Some(ImageFormat::Gif),
-        "bmp" => Some(ImageFormat::Bmp),
+        "bmp" | "dib" => Some(ImageFormat::Bmp),
+        "ico" => Some(ImageFormat::Ico),
+        "tga" | "targa" => Some(ImageFormat::Tga),
+        "pnm" | "pbm" | "pgm" | "ppm" | "pam" => Some(ImageFormat::Pnm),
+        "hdr" => Some(ImageFormat::Hdr),
+        "exr" => Some(ImageFormat::OpenExr),
+        "ff" | "farbfeld" => Some(ImageFormat::Farbfeld),
+        "qoi" => Some(ImageFormat::Qoi),
         _ => None,
     }
 }
 
 fn save_image(img: &DynamicImage, path: &str, format: &str, quality: u8) -> Result<(), String> {
     let fmt = str_to_format(format).ok_or(format!("지원하지 않는 포맷: {}", format))?;
+    if !fmt.writing_enabled() {
+        return Err(format!("저장을 지원하지 않는 포맷: {}", format));
+    }
 
     match fmt {
         ImageFormat::Jpeg => {
@@ -71,7 +82,12 @@ fn save_image(img: &DynamicImage, path: &str, format: &str, quality: u8) -> Resu
     Ok(())
 }
 
-pub fn resize_image(img: &DynamicImage, width: Option<u32>, height: Option<u32>, fit: &str) -> DynamicImage {
+pub fn resize_image(
+    img: &DynamicImage,
+    width: Option<u32>,
+    height: Option<u32>,
+    fit: &str,
+) -> DynamicImage {
     let (orig_w, orig_h) = img.dimensions();
 
     let (target_w, target_h) = match (width, height) {
@@ -95,7 +111,12 @@ pub fn resize_image(img: &DynamicImage, width: Option<u32>, height: Option<u32>,
     }
 }
 
-pub fn transform_image(img: &DynamicImage, rotate: Option<i32>, flip_h: Option<bool>, flip_v: Option<bool>) -> DynamicImage {
+pub fn transform_image(
+    img: &DynamicImage,
+    rotate: Option<i32>,
+    flip_h: Option<bool>,
+    flip_v: Option<bool>,
+) -> DynamicImage {
     let mut result = img.clone();
 
     if let Some(deg) = rotate {
@@ -117,29 +138,41 @@ pub fn transform_image(img: &DynamicImage, rotate: Option<i32>, flip_h: Option<b
     result
 }
 
-fn detect_format_from_path(path: &str) -> &str {
+fn detect_format_from_path(path: &str) -> Result<&'static str, String> {
     let ext = PathBuf::from(path)
         .extension()
         .and_then(|e| e.to_str())
-        .unwrap_or("png")
+        .unwrap_or("")
         .to_lowercase();
-    match ext.as_str() {
-        "jpg" | "jpeg" => "jpeg",
-        "png" => "png",
+    let format = match ext.as_str() {
+        "jpg" | "jpeg" | "jpe" | "jfif" | "pjpeg" | "pjp" => "jpeg",
+        "png" | "apng" => "png",
         "webp" => "webp",
         "avif" => "avif",
         "tiff" | "tif" => "tiff",
         "gif" => "gif",
-        "bmp" => "bmp",
-        _ => "png",
-    }
+        "bmp" | "dib" => "bmp",
+        "ico" => "ico",
+        "tga" | "targa" => "tga",
+        "pnm" | "pbm" | "pgm" | "ppm" | "pam" => "pnm",
+        "hdr" => "hdr",
+        "exr" => "exr",
+        "ff" | "farbfeld" => "ff",
+        "qoi" => "qoi",
+        _ => return Err(format!("저장을 지원하지 않는 확장자: .{}", ext)),
+    };
+    Ok(format)
 }
 
 #[tauri::command]
 pub fn image_convert(options: ConvertOptions) -> Result<ProcessResult, String> {
-    let data = fs::read(&options.file_path).map_err(|e| e.to_string())?;
-    let img = image::load_from_memory(&data).map_err(|e| e.to_string())?;
-    save_image(&img, &options.output_path, &options.output_format, options.quality)?;
+    let img = image_formats::load_raster_image(Path::new(&options.file_path))?;
+    save_image(
+        &img,
+        &options.output_path,
+        &options.output_format,
+        options.quality,
+    )?;
     Ok(ProcessResult {
         success: true,
         output_path: options.output_path,
@@ -148,10 +181,9 @@ pub fn image_convert(options: ConvertOptions) -> Result<ProcessResult, String> {
 
 #[tauri::command]
 pub fn image_resize(options: ResizeOptions) -> Result<ProcessResult, String> {
-    let data = fs::read(&options.file_path).map_err(|e| e.to_string())?;
-    let img = image::load_from_memory(&data).map_err(|e| e.to_string())?;
+    let img = image_formats::load_raster_image(Path::new(&options.file_path))?;
     let resized = resize_image(&img, options.width, options.height, &options.fit);
-    let fmt = detect_format_from_path(&options.output_path);
+    let fmt = detect_format_from_path(&options.output_path)?;
     save_image(&resized, &options.output_path, fmt, 92)?;
     Ok(ProcessResult {
         success: true,
@@ -161,10 +193,9 @@ pub fn image_resize(options: ResizeOptions) -> Result<ProcessResult, String> {
 
 #[tauri::command]
 pub fn image_transform(options: TransformOptions) -> Result<ProcessResult, String> {
-    let data = fs::read(&options.file_path).map_err(|e| e.to_string())?;
-    let img = image::load_from_memory(&data).map_err(|e| e.to_string())?;
+    let img = image_formats::load_raster_image(Path::new(&options.file_path))?;
     let transformed = transform_image(&img, options.rotate, options.flip_h, options.flip_v);
-    let fmt = detect_format_from_path(&options.output_path);
+    let fmt = detect_format_from_path(&options.output_path)?;
     save_image(&transformed, &options.output_path, fmt, 92)?;
     Ok(ProcessResult {
         success: true,
@@ -174,8 +205,7 @@ pub fn image_transform(options: TransformOptions) -> Result<ProcessResult, Strin
 
 #[tauri::command]
 pub fn image_copy_to_clipboard(file_path: String) -> Result<(), String> {
-    let data = fs::read(&file_path).map_err(|e| e.to_string())?;
-    let img = image::load_from_memory(&data).map_err(|e| e.to_string())?;
+    let img = image_formats::load_raster_image(Path::new(&file_path))?;
     let rgba = img.to_rgba8();
     let (w, h) = rgba.dimensions();
 

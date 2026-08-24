@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerAllHandlers } from './ipc'
+import { isImageFile } from './image-formats'
 
 // Set process name for task manager
 app.setName('MyImgViewer')
@@ -70,12 +71,7 @@ app.whenReady().then(() => {
 })
 
 function findImageArg(args: string[]): string | undefined {
-  return args.find((arg) => {
-    const ext = arg.toLowerCase()
-    return ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tiff', '.gif', '.bmp'].some((e) =>
-      ext.endsWith(e)
-    )
-  })
+  return args.find((arg) => isImageFile(arg))
 }
 
 // Handle file association - open file passed as argument (second instance)

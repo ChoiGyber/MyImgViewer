@@ -1,15 +1,12 @@
+use crate::image_formats;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use serde::Serialize;
 use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
-const IMAGE_EXTENSIONS: &[&str] = &[
-    "jpg", "jpeg", "png", "webp", "avif", "tiff", "tif", "gif", "bmp", "svg",
-];
-
 fn is_image_ext(ext: &str) -> bool {
-    IMAGE_EXTENSIONS.contains(&ext.to_lowercase().as_str())
+    image_formats::is_image_ext(ext)
 }
 
 #[derive(Serialize)]
@@ -67,7 +64,10 @@ pub fn folder_list(dir_path: String) -> Vec<String> {
         )
     });
 
-    files.iter().map(|p| p.to_string_lossy().to_string()).collect()
+    files
+        .iter()
+        .map(|p| p.to_string_lossy().to_string())
+        .collect()
 }
 
 #[tauri::command]
@@ -139,8 +139,10 @@ fn generate_thumbnail(path: &Path) -> String {
         Ok(d) => d,
         Err(_) => return String::new(),
     };
-    let img = match image::load_from_memory(&data) {
-        Ok(i) => i,
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+    let img = match image_formats::decode_image(&data, ext) {
+        Ok(Some(i)) => i,
+        Ok(None) => return String::new(),
         Err(_) => return String::new(),
     };
 
@@ -185,4 +187,22 @@ pub fn get_screenshots_dir() -> Result<String, String> {
     let screenshots = pics.join("Screenshots");
     fs::create_dir_all(&screenshots).map_err(|e| e.to_string())?;
     Ok(screenshots.to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn folder_navigation_accepts_extended_and_iphone_extensions() {
+        let cases = ["jpe", "jfif", "ico", "tga", "qoi", "heic", "heif", "hif"];
+
+        for case in cases {
+            assert!(is_image_ext(case), "{case} should be listed as an image");
+            assert!(
+                is_image_ext(&case.to_uppercase()),
+                "{case} should be case-insensitive"
+            );
+        }
+    }
 }

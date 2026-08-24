@@ -1,9 +1,9 @@
 import { ipcMain, shell } from 'electron'
 import sharp from 'sharp'
+import heicConvert from 'heic-convert'
 import * as path from 'path'
 import * as fs from 'fs'
-
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tiff', '.tif', '.gif', '.bmp', '.svg', '.heic', '.heif']
+import { imageExtension, isHeifExtension, isImageFile } from '../image-formats'
 
 
 export function registerFolderNavHandlers(): void {
@@ -23,7 +23,7 @@ export function registerFolderNavHandlers(): void {
     try {
       const allFiles = fs.readdirSync(dirPath)
       const imageFiles = allFiles
-        .filter((f) => IMAGE_EXTENSIONS.includes(path.extname(f).toLowerCase()))
+        .filter((f) => isImageFile(f))
         .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
         .map((f) => path.join(dirPath, f))
       return imageFiles
@@ -62,10 +62,13 @@ export function registerFolderNavHandlers(): void {
 
         if (ext === '.pdf') {
           results.push({ filePath, fileName: f.name, thumbnail: '', type: 'pdf' })
-        } else if (IMAGE_EXTENSIONS.includes(ext)) {
+        } else if (isImageFile(f.name)) {
           try {
             const buffer = fs.readFileSync(filePath)
-            const thumbBuf = await sharp(buffer)
+            const input = isHeifExtension(imageExtension(filePath))
+              ? Buffer.from(await heicConvert({ buffer, format: 'PNG' }))
+              : buffer
+            const thumbBuf = await sharp(input)
               .resize(120, 120, { fit: 'cover' })
               .jpeg({ quality: 60 })
               .toBuffer()

@@ -1,3 +1,4 @@
+use crate::image_formats;
 use image::GenericImageView;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -55,22 +56,30 @@ fn ensure_dir(dir: &str) {
     let _ = fs::create_dir_all(dir);
 }
 
-fn detect_format(path: &Path) -> &str {
+fn detect_format(path: &Path) -> Result<&'static str, String> {
     let ext = path
         .extension()
         .and_then(|e| e.to_str())
-        .unwrap_or("png")
+        .unwrap_or("")
         .to_lowercase();
-    match ext.as_str() {
-        "jpg" | "jpeg" => "jpeg",
-        "png" => "png",
+    let format = match ext.as_str() {
+        "jpg" | "jpeg" | "jpe" | "jfif" | "pjpeg" | "pjp" => "jpeg",
+        "png" | "apng" => "png",
         "webp" => "webp",
         "avif" => "avif",
         "tiff" | "tif" => "tiff",
         "gif" => "gif",
-        "bmp" => "bmp",
-        _ => "png",
-    }
+        "bmp" | "dib" => "bmp",
+        "ico" => "ico",
+        "tga" | "targa" => "tga",
+        "pnm" | "pbm" | "pgm" | "ppm" | "pam" => "pnm",
+        "hdr" => "hdr",
+        "exr" => "exr",
+        "ff" | "farbfeld" => "ff",
+        "qoi" => "qoi",
+        _ => return Err(format!("저장을 지원하지 않는 확장자: .{}", ext)),
+    };
+    Ok(format)
 }
 
 fn save_image_fmt(
@@ -83,15 +92,26 @@ fn save_image_fmt(
     use std::io::Cursor;
 
     let fmt = match format {
-        "jpeg" | "jpg" => ImageFormat::Jpeg,
-        "png" => ImageFormat::Png,
+        "jpeg" | "jpg" | "jpe" | "jfif" | "pjpeg" | "pjp" => ImageFormat::Jpeg,
+        "png" | "apng" => ImageFormat::Png,
         "webp" => ImageFormat::WebP,
         "avif" => ImageFormat::Avif,
-        "tiff" => ImageFormat::Tiff,
+        "tiff" | "tif" => ImageFormat::Tiff,
         "gif" => ImageFormat::Gif,
-        "bmp" => ImageFormat::Bmp,
+        "bmp" | "dib" => ImageFormat::Bmp,
+        "ico" => ImageFormat::Ico,
+        "tga" | "targa" => ImageFormat::Tga,
+        "pnm" | "pbm" | "pgm" | "ppm" | "pam" => ImageFormat::Pnm,
+        "hdr" => ImageFormat::Hdr,
+        "exr" => ImageFormat::OpenExr,
+        "ff" | "farbfeld" => ImageFormat::Farbfeld,
+        "qoi" => ImageFormat::Qoi,
         _ => ImageFormat::Png,
     };
+
+    if !fmt.writing_enabled() {
+        return Err(format!("저장을 지원하지 않는 포맷: {}", format));
+    }
 
     match fmt {
         ImageFormat::Jpeg => {
@@ -131,8 +151,7 @@ pub fn batch_resize(window: Window, options: BatchResizeOptions) -> Vec<BatchRes
         );
 
         match (|| -> Result<(), String> {
-            let data = fs::read(file_path).map_err(|e| e.to_string())?;
-            let img = image::load_from_memory(&data).map_err(|e| e.to_string())?;
+            let img = image_formats::load_raster_image(Path::new(file_path))?;
 
             let (w, h) = if let Some(pct) = options.percent {
                 if pct > 0.0 {
@@ -150,7 +169,7 @@ pub fn batch_resize(window: Window, options: BatchResizeOptions) -> Vec<BatchRes
 
             let resized = resize_image(&img, w, h, &options.fit);
             let output_path = PathBuf::from(&options.output_dir).join(&file_name);
-            let fmt = detect_format(&path);
+            let fmt = detect_format(&path)?;
             save_image_fmt(&resized, output_path.to_str().unwrap_or(""), fmt, 92)?;
             Ok(())
         })() {
@@ -194,11 +213,10 @@ pub fn batch_transform(window: Window, options: BatchTransformOptions) -> Vec<Ba
         );
 
         match (|| -> Result<(), String> {
-            let data = fs::read(file_path).map_err(|e| e.to_string())?;
-            let img = image::load_from_memory(&data).map_err(|e| e.to_string())?;
+            let img = image_formats::load_raster_image(Path::new(file_path))?;
             let transformed = transform_image(&img, options.rotate, options.flip_h, options.flip_v);
             let output_path = PathBuf::from(&options.output_dir).join(&file_name);
-            let fmt = detect_format(&path);
+            let fmt = detect_format(&path)?;
             save_image_fmt(&transformed, output_path.to_str().unwrap_or(""), fmt, 92)?;
             Ok(())
         })() {
@@ -226,7 +244,11 @@ pub fn batch_convert(window: Window, options: BatchConvertOptions) -> Vec<BatchR
 
     for (i, file_path) in options.file_paths.iter().enumerate() {
         let path = PathBuf::from(file_path);
-        let base_name = path.file_stem().unwrap_or_default().to_string_lossy().to_string();
+        let base_name = path
+            .file_stem()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
         let ext = if options.output_format == "jpeg" {
             "jpg"
         } else {
@@ -244,8 +266,7 @@ pub fn batch_convert(window: Window, options: BatchConvertOptions) -> Vec<BatchR
         );
 
         match (|| -> Result<(), String> {
-            let data = fs::read(file_path).map_err(|e| e.to_string())?;
-            let img = image::load_from_memory(&data).map_err(|e| e.to_string())?;
+            let img = image_formats::load_raster_image(Path::new(file_path))?;
             let output_path = PathBuf::from(&options.output_dir).join(&output_file_name);
             save_image_fmt(
                 &img,

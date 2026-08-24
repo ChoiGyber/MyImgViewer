@@ -39,17 +39,28 @@
     ],
     "windows": {
       "nsis": {
-        "installMode": "currentUser"
+        "installMode": "perMachine"
       }
     },
     "fileAssociations": [
-      { "ext": ["jpg", "jpeg"], "mimeType": "image/jpeg", "description": "JPEG Image" },
-      { "ext": ["png"], "mimeType": "image/png", "description": "PNG Image" },
-      { "ext": ["webp"], "mimeType": "image/webp", "description": "WebP Image" },
-      { "ext": ["gif"], "mimeType": "image/gif", "description": "GIF Image" },
-      { "ext": ["bmp"], "mimeType": "image/bmp", "description": "BMP Image" },
-      { "ext": ["avif"], "mimeType": "image/avif", "description": "AVIF Image" },
-      { "ext": ["tiff", "tif"], "mimeType": "image/tiff", "description": "TIFF Image" }
+      { "ext": ["jpg", "jpeg", "jpe", "jfif", "pjpeg", "pjp"], "mimeType": "image/jpeg", "description": "JPEG Image", "role": "Viewer" },
+      { "ext": ["png", "apng"], "mimeType": "image/png", "description": "PNG Image", "role": "Viewer" },
+      { "ext": ["webp"], "mimeType": "image/webp", "description": "WebP Image", "role": "Viewer" },
+      { "ext": ["avif"], "mimeType": "image/avif", "description": "AVIF Image", "role": "Viewer" },
+      { "ext": ["tiff", "tif"], "mimeType": "image/tiff", "description": "TIFF Image", "role": "Viewer" },
+      { "ext": ["gif"], "mimeType": "image/gif", "description": "GIF Image", "role": "Viewer" },
+      { "ext": ["bmp", "dib"], "mimeType": "image/bmp", "description": "BMP Image", "role": "Viewer" },
+      { "ext": ["svg"], "mimeType": "image/svg+xml", "description": "SVG Image", "role": "Viewer" },
+      { "ext": ["ico"], "mimeType": "image/x-icon", "description": "Icon Image", "role": "Viewer" },
+      { "ext": ["heic", "heics"], "mimeType": "image/heic", "description": "HEIC Image", "role": "Viewer" },
+      { "ext": ["heif", "heifs", "hif"], "mimeType": "image/heif", "description": "HEIF Image", "role": "Viewer" },
+      { "ext": ["tga", "targa"], "mimeType": "image/x-tga", "description": "TGA Image", "role": "Viewer" },
+      { "ext": ["pnm", "pbm", "pgm", "ppm", "pam"], "mimeType": "image/x-portable-anymap", "description": "PNM Image", "role": "Viewer" },
+      { "ext": ["qoi"], "mimeType": "image/x-qoi", "description": "QOI Image", "role": "Viewer" },
+      { "ext": ["dds"], "mimeType": "image/vnd-ms.dds", "description": "DDS Image", "role": "Viewer" },
+      { "ext": ["hdr"], "mimeType": "image/vnd.radiance", "description": "Radiance HDR Image", "role": "Viewer" },
+      { "ext": ["exr"], "mimeType": "image/x-exr", "description": "OpenEXR Image", "role": "Viewer" },
+      { "ext": ["ff", "farbfeld"], "mimeType": "application/octet-stream", "description": "Farbfeld Image", "role": "Viewer" }
     ]
   }
 }

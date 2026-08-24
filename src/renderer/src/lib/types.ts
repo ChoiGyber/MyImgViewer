@@ -49,3 +49,12 @@ export interface FolderImages {
   files: string[]
   currentIndex: number
 }
+
+export interface UpdateInfo {
+  currentVersion: string
+  latestVersion: string
+  releaseName: string
+  releaseNotes: string
+  releaseUrl: string
+  publishedAt: string | null
+}
