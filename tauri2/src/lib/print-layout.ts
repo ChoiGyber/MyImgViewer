@@ -1,5 +1,13 @@
 export type PrintRotation = 0 | 90 | 180 | 270
 export type PrintScaleMode = 'fitRatio' | 'fillPaper' | 'actualSize'
+export type PrintPaperSize = 'a4' | 'letter' | 'legal' | 'a3' | 'a5'
+
+export interface PrintPaperDefinition {
+  value: PrintPaperSize
+  label: string
+  widthMm: number
+  heightMm: number
+}
 
 export interface PrintImage {
   dataUrl: string
@@ -11,14 +19,34 @@ export interface PrintImage {
 export interface PrintOptions {
   rotation: PrintRotation
   scaleMode: PrintScaleMode
+  paperSize: PrintPaperSize
   copies: number
 }
 
 export const DEFAULT_PRINT_OPTIONS: PrintOptions = {
   rotation: 0,
   scaleMode: 'fitRatio',
+  paperSize: 'a4',
   copies: 1
 }
+
+export const PRINT_PAPER_SIZES: PrintPaperDefinition[] = [
+  { value: 'a4', label: 'A4 (210 x 297mm)', widthMm: 210, heightMm: 297 },
+  {
+    value: 'letter',
+    label: 'Letter (8.5 x 11in)',
+    widthMm: 215.9,
+    heightMm: 279.4
+  },
+  {
+    value: 'legal',
+    label: 'Legal (8.5 x 14in)',
+    widthMm: 215.9,
+    heightMm: 355.6
+  },
+  { value: 'a3', label: 'A3 (297 x 420mm)', widthMm: 297, heightMm: 420 },
+  { value: 'a5', label: 'A5 (148 x 210mm)', widthMm: 148, heightMm: 210 }
+]
 
 export const PRINT_ROTATIONS: { value: PrintRotation; label: string }[] = [
   { value: 0, label: '회전 없음' },
@@ -41,6 +69,18 @@ function isPrintScaleMode(value: unknown): value is PrintScaleMode {
   return value === 'fitRatio' || value === 'fillPaper' || value === 'actualSize'
 }
 
+function isPrintPaperSize(value: unknown): value is PrintPaperSize {
+  return PRINT_PAPER_SIZES.some((paper) => paper.value === value)
+}
+
+export function getPrintPaperSize(value: unknown): PrintPaperDefinition {
+  return (
+    PRINT_PAPER_SIZES.find((paper) => paper.value === value) ??
+    PRINT_PAPER_SIZES.find((paper) => paper.value === DEFAULT_PRINT_OPTIONS.paperSize) ??
+    PRINT_PAPER_SIZES[0]
+  )
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -57,18 +97,26 @@ export function normalizePrintOptions(options: Partial<PrintOptions>): PrintOpti
     scaleMode: isPrintScaleMode(options.scaleMode)
       ? options.scaleMode
       : DEFAULT_PRINT_OPTIONS.scaleMode,
+    paperSize: isPrintPaperSize(options.paperSize)
+      ? options.paperSize
+      : DEFAULT_PRINT_OPTIONS.paperSize,
     copies
   }
 }
 
 export function buildPrintHtml(image: PrintImage, rawOptions: Partial<PrintOptions>): string {
   const options = normalizePrintOptions(rawOptions)
+  const paper = getPrintPaperSize(options.paperSize)
+  const pageWidth = `${paper.widthMm}mm`
+  const pageHeight = `${paper.heightMm}mm`
   const title = escapeHtml(image.fileName)
   const dataUrl = escapeHtml(image.dataUrl)
   const pages = Array.from(
     { length: options.copies },
     () => `<section class="print-page mode-${options.scaleMode}">
-      <img class="print-image" src="${dataUrl}" alt="${title}" />
+      <div class="paper-frame">
+        <img class="print-image" src="${dataUrl}" alt="${title}" />
+      </div>
     </section>`
   ).join('\n')
 
@@ -78,12 +126,12 @@ export function buildPrintHtml(image: PrintImage, rawOptions: Partial<PrintOptio
   <meta charset="utf-8" />
   <title>${title}</title>
   <style>
-    @page { size: auto; margin: 0; }
+    @page { size: ${pageWidth} ${pageHeight}; margin: 0; }
     html, body { margin: 0; width: 100%; min-height: 100%; background: #fff; }
     body { overflow: hidden; }
     .print-page {
-      width: 100vw;
-      height: 100vh;
+      width: ${pageWidth};
+      height: ${pageHeight};
       display: flex;
       align-items: center;
       justify-content: center;
@@ -92,21 +140,31 @@ export function buildPrintHtml(image: PrintImage, rawOptions: Partial<PrintOptio
       page-break-after: always;
     }
     .print-page:last-child { break-after: auto; page-break-after: auto; }
+    .paper-frame {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: #fff;
+      box-sizing: border-box;
+    }
     .print-image {
       display: block;
       transform: rotate(${options.rotation}deg);
       transform-origin: center center;
     }
     .mode-fitRatio .print-image {
-      max-width: 100vw;
-      max-height: 100vh;
+      max-width: 100%;
+      max-height: 100%;
       width: auto;
       height: auto;
       object-fit: contain;
     }
     .mode-fillPaper .print-image {
-      width: 100vw;
-      height: 100vh;
+      width: 100%;
+      height: 100%;
       object-fit: fill;
     }
     .mode-actualSize .print-image {
@@ -124,17 +182,16 @@ ${pages}
 </html>`
 }
 
-export async function printImage(
-  image: PrintImage,
-  options: Partial<PrintOptions>
-): Promise<void> {
+export async function printImage(image: PrintImage, options: Partial<PrintOptions>): Promise<void> {
+  const normalizedOptions = normalizePrintOptions(options)
+  const paper = getPrintPaperSize(normalizedOptions.paperSize)
   const iframe = document.createElement('iframe')
   iframe.title = 'print'
   iframe.style.position = 'fixed'
   iframe.style.left = '-10000px'
   iframe.style.top = '0'
-  iframe.style.width = '100vw'
-  iframe.style.height = '100vh'
+  iframe.style.width = `${paper.widthMm}mm`
+  iframe.style.height = `${paper.heightMm}mm`
   iframe.style.border = '0'
   iframe.style.opacity = '0'
 
@@ -150,7 +207,7 @@ export async function printImage(
 
     iframe.onload = () => resolve()
     doc.open()
-    doc.write(buildPrintHtml(image, options))
+    doc.write(buildPrintHtml(image, normalizedOptions))
     doc.close()
   })
 

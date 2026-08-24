@@ -35,22 +35,43 @@ const image = {
   height: 400
 }
 
-for (const filePath of ['src/renderer/src/lib/print-layout.ts', 'tauri2/src/lib/print-layout.ts']) {
+for (const filePath of ['tauri2/src/lib/print-layout.ts']) {
   const mod = loadTsModule(filePath)
   assertJsonEqual(
-    mod.normalizePrintOptions({ rotation: 91, scaleMode: 'bad', copies: 0 }),
-    { rotation: 0, scaleMode: 'fitRatio', copies: 1 },
+    mod.normalizePrintOptions({
+      rotation: 91,
+      scaleMode: 'bad',
+      copies: 0,
+      paperSize: 'bad'
+    }),
+    { rotation: 0, scaleMode: 'fitRatio', paperSize: 'a4', copies: 1 },
     `${filePath}: invalid print options should fall back to safe defaults`
   )
   assertJsonEqual(
-    mod.normalizePrintOptions({ rotation: 270, scaleMode: 'actualSize', copies: 120 }),
-    { rotation: 270, scaleMode: 'actualSize', copies: 99 },
+    mod.normalizePrintOptions({
+      rotation: 270,
+      scaleMode: 'actualSize',
+      paperSize: 'letter',
+      copies: 120
+    }),
+    { rotation: 270, scaleMode: 'actualSize', paperSize: 'letter', copies: 99 },
     `${filePath}: copies should be clamped and valid options preserved`
+  )
+  assert.equal(
+    mod.getPrintPaperSize('legal').label,
+    'Legal (8.5 x 14in)',
+    `${filePath}: paper definitions should be available for the print preview`
+  )
+  assert.equal(
+    mod.getPrintPaperSize('bad').value,
+    'a4',
+    `${filePath}: invalid paper sizes should fall back to A4`
   )
 
   const fitHtml = mod.buildPrintHtml(image, {
     rotation: 90,
     scaleMode: 'fitRatio',
+    paperSize: 'letter',
     copies: 3
   })
   assert.equal(
@@ -58,13 +79,25 @@ for (const filePath of ['src/renderer/src/lib/print-layout.ts', 'tauri2/src/lib/
     3,
     `${filePath}: requested copies should create repeated print pages`
   )
+  assert.ok(
+    fitHtml.includes('@page { size: 215.9mm 279.4mm; margin: 0; }'),
+    `${filePath}: selected paper size should be used`
+  )
+  assert.ok(
+    fitHtml.includes('class="paper-frame"'),
+    `${filePath}: paper frame should wrap the printed image`
+  )
   assert.ok(fitHtml.includes('rotate(90deg)'), `${filePath}: rotation should be applied`)
-  assert.ok(fitHtml.includes('object-fit: contain'), `${filePath}: fitRatio should preserve aspect ratio`)
+  assert.ok(
+    fitHtml.includes('object-fit: contain'),
+    `${filePath}: fitRatio should preserve aspect ratio`
+  )
   assert.ok(fitHtml.includes('print &lt;sample&gt;.png'), `${filePath}: filename should be escaped`)
 
   const fillHtml = mod.buildPrintHtml(image, {
     rotation: 0,
     scaleMode: 'fillPaper',
+    paperSize: 'a4',
     copies: 1
   })
   assert.ok(fillHtml.includes('object-fit: fill'), `${filePath}: fillPaper should fill the paper`)
@@ -72,10 +105,17 @@ for (const filePath of ['src/renderer/src/lib/print-layout.ts', 'tauri2/src/lib/
   const actualHtml = mod.buildPrintHtml(image, {
     rotation: 0,
     scaleMode: 'actualSize',
+    paperSize: 'a4',
     copies: 1
   })
-  assert.ok(actualHtml.includes('width: 600px'), `${filePath}: actual size should use image pixel width`)
-  assert.ok(actualHtml.includes('height: 400px'), `${filePath}: actual size should use image pixel height`)
+  assert.ok(
+    actualHtml.includes('width: 600px'),
+    `${filePath}: actual size should use image pixel width`
+  )
+  assert.ok(
+    actualHtml.includes('height: 400px'),
+    `${filePath}: actual size should use image pixel height`
+  )
 }
 
 console.log('Print layout logic verified.')
